@@ -1,0 +1,46 @@
+# dependencias
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# build de Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# testing y cobertura
+/coverage
+/.vitest
+*.lcov
+
+# entorno — nunca commitear secretos
+.env
+.env.*
+!.env.example
+
+# datos locales de docker-compose
+/.docker-data/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# sistema operativo y editores
+.DS_Store
+Thumbs.db
+*.pem
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# varios
+*.tsbuildinfo
+.turbo

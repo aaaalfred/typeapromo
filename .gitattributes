@@ -1,0 +1,12 @@
+# Normaliza a LF en el repositorio y en el árbol de trabajo: la imagen Docker es Linux
+# y un CRLF en un script o en un fichero de configuración rompe el arranque.
+* text=auto eol=lf
+
+package-lock.json -diff linguist-generated
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
