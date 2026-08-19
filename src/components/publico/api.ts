@@ -12,6 +12,9 @@
  * 3. **Nada de tokens.** No hay ningún identificador de sesión en estas
  *    llamadas: viaja la cookie `HttpOnly`, que el navegador adjunta solo porque
  *    se pide `credentials: 'same-origin'`.
+ *
+ * La finalización se envía además con `keepalive`, por el motivo que explica
+ * `completarSesionPublica`.
  */
 
 import type { AnswerValue, FormProgress, ScreenRef } from '@/lib/forms';
@@ -65,10 +68,23 @@ async function leerJson(respuesta: Response): Promise<unknown> {
   }
 }
 
+interface OpcionesPeticion {
+  /**
+   * Mantener la petición viva aunque el documento se descargue.
+   *
+   * Solo para cuerpos pequeños y acotados: el navegador impone una cuota de
+   * 64 KB al conjunto de peticiones `keepalive` en vuelo, y superarla las hace
+   * fallar. Por eso no se aplica a guardar respuestas, cuyo tamaño depende de
+   * lo que escriba quien responde.
+   */
+  readonly sobrevivirADescarga?: boolean;
+}
+
 async function peticion<T>(
   ruta: string,
   metodo: 'POST' | 'PUT',
   cuerpo: unknown,
+  opciones: OpcionesPeticion = {},
 ): Promise<T> {
   let respuesta: Response;
   try {
@@ -78,6 +94,7 @@ async function peticion<T>(
       credentials: 'same-origin',
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify(cuerpo),
+      ...(opciones.sobrevivirADescarga === true ? { keepalive: true } : {}),
     });
   } catch {
     throw new ErrorPublico(MENSAJE_ERROR_RED, 'ERROR_DE_RED', null);
@@ -134,6 +151,26 @@ export async function guardarRespuestaPublica(
   );
 }
 
+/**
+ * Cierra la sesión.
+ *
+ * Va con `keepalive` porque es la única llamada que se emite **después** de que
+ * la interfaz haya avanzado: la pantalla final se pinta de forma optimista, sin
+ * esperar a la red. Sin esto, cerrar la pestaña en esa ventana aborta la
+ * petición, la sesión se queda en `in_progress` y, como el abandono se deriva
+ * por inactividad, un formulario realmente completado acaba contado como
+ * abandonado y contamina el tablero y el CSV.
+ *
+ * `keepalive` y no `navigator.sendBeacon`: el beacon no permite fijar
+ * `content-type: application/json` sin envolver el cuerpo en un `Blob`, no
+ * devuelve la respuesta —que aquí sí se usa cuando la página sigue viva— y no
+ * distingue un rechazo del servidor de un envío correcto. `fetch` con
+ * `keepalive` da la misma supervivencia a la descarga sin renunciar a nada de
+ * eso. El cuerpo es un único identificador, muy por debajo de la cuota de 64 KB.
+ *
+ * El endpoint es idempotente, así que un reintento o un envío duplicado no
+ * registran dos veces la finalización.
+ */
 export async function completarSesionPublica(
   formId: string,
 ): Promise<{ readonly sesion: SesionPublica }> {
@@ -141,5 +178,6 @@ export async function completarSesionPublica(
     '/api/public/sessions/complete',
     'POST',
     { formId },
+    { sobrevivirADescarga: true },
   );
 }
