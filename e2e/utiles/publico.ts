@@ -51,6 +51,13 @@ export async function avanzarHastaFinal(pagina: Page, idPantallaFinal: string): 
   const final = pantalla(pagina, idPantallaFinal)
   await expect(final).toBeVisible()
   await expect(final).toHaveAttribute('data-tipo', 'ending')
+  // La pantalla final aparece de forma optimista, con la peticion de
+  // finalizacion todavia en vuelo. Sin esperar a que el renderizador vuelva a
+  // `listo`, quien consulte resultados justo despues lee la sesion sin cerrar.
+  await expect(pagina.locator('[data-renderizador="formulario"]')).toHaveAttribute(
+    'data-estado',
+    'listo',
+  )
 }
 
 /** Identificadores de las pantallas por las que se ha pasado, en orden. */

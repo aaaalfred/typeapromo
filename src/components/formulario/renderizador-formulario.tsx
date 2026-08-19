@@ -157,6 +157,14 @@ export function RenderizadorFormulario({
   );
   const [historial, setHistorial] = useState<readonly ScreenRef[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Hay una escritura en vuelo (respuesta o finalizacion).
+   *
+   * Se publica en el DOM como `data-estado` porque la pantalla final se pinta de
+   * forma optimista —antes de que `onCompletar` termine— y sin esa senal no
+   * queda nada observable a lo que esperar: ni para la interfaz, ni para los
+   * tests, que si no consultan resultados con la finalizacion todavia en vuelo.
+   */
   const [enviando, setEnviando] = useState(false);
 
   const respuestasActuales = respuestas ?? respuestasInternas;
@@ -339,6 +347,7 @@ export function RenderizadorFormulario({
       <div
         {...atributosDeTema(tema)}
         data-renderizador="formulario"
+        data-estado={enviando ? 'enviando' : 'listo'}
         className={cn(
           'tp-raiz @container relative isolate flex min-h-full w-full flex-col overflow-hidden',
           className,
