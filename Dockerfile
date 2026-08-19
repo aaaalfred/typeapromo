@@ -39,9 +39,15 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-# Migraciones y configuración de Drizzle, para aplicarlas de forma controlada en despliegue.
+# Migraciones y runner, para aplicarlas de forma controlada en despliegue.
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
+COPY --chown=nextjs:nodejs scripts ./scripts
+# `output: standalone` solo trae las dependencias que el build ha trazado, y
+# drizzle-orm no está entre ellas mientras ninguna ruta lo importe. Se copia
+# aparte para que `node scripts/migrate.mjs` funcione dentro de esta imagen;
+# no arrastra nada más porque drizzle-orm no tiene dependencias runtime.
+# drizzle-kit NO sirve aquí: es devDependency y no viaja en la imagen final.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 
 USER nextjs
 EXPOSE 3000

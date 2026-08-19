@@ -15,7 +15,7 @@ env:
 
 jobs:
   verify:
-    name: Lint · typecheck · build
+    name: Lint · typecheck · tests · build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -38,5 +38,229 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Protección 3 del bypass de autenticación (PLAN.md, «Seguridad del bypass»).
+      - name: El bypass no existe en producción
+        run: npm run verify:bypass
+
+      - name: Tests unitarios
+        run: npm test
+
       - name: Build
         run: npm run build
+
+  migrations:
+    name: Migraciones sobre PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: typeapromo
+          POSTGRES_PASSWORD: typeapromo
+          POSTGRES_DB: typeapromo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U typeapromo -d typeapromo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://typeapromo:typeapromo@localhost:5432/typeapromo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      # Con el mismo runner que usa la imagen de producción, no con drizzle-kit:
+      # si esto pasa, el arranque del contenedor también pasa.
+      - name: Aplicar migraciones
+        run: npm run db:deploy
+
+      - name: Reaplicar es un no-op (idempotencia)
+        run: npm run db:deploy
+
+      # Atrapa el error clásico: tocar src/db/schema y olvidar generar la migración.
+      # Se compara el estado antes y después en lugar de exigir que `drizzle/`
+      # esté limpio, para que el paso diga lo mismo aquí que en un checkout local.
+      - name: El esquema y las migraciones no divergen
+        run: |
+          antes=$(git status --porcelain drizzle)
+          npx drizzle-kit generate
+          despues=$(git status --porcelain drizzle)
+          if [ "$antes" != "$despues" ]; then
+            echo '::error::src/db/schema no coincide con drizzle/. Ejecuta `npm run db:generate` y commitea el resultado.'
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Job aparte, y no un paso más de `verify`, a propósito. Esta suite compila el
+    # build de producción, levanta PostgreSQL y MinIO y descarga Chromium: son
+    # varios minutos que no tienen por qué retrasar el aviso de un error de tipos.
+    # Con dos jobs, el veredicto barato llega enseguida y el caro llega cuando
+    # llega, sin bloquear al otro.
+
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: typeapromo
+          POSTGRES_PASSWORD: typeapromo
+          POSTGRES_DB: typeapromo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U typeapromo -d typeapromo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://typeapromo:typeapromo@localhost:5432/typeapromo
+      R2_ENDPOINT: http://localhost:9000
+      R2_ACCESS_KEY_ID: minioadmin
+      R2_SECRET_ACCESS_KEY: minioadmin
+      R2_BUCKET_STAGING: forms-media-staging
+      R2_BUCKET_PUBLIC: forms-media-public
+      MEDIA_PUBLIC_BASE_URL: http://localhost:9000/forms-media-public
+      S3_FORCE_PATH_STYLE: '1'
+      CLEANUP_SECRET: secreto-limpieza-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      # MinIO va con `docker run` y no como `service` porque su imagen necesita el
+      # argumento `server /data`, y los servicios de Actions no admiten `command`.
+      # Es el mismo sustituto S3-compatible de R2 que usa el compose local: valida
+      # el flujo del pipeline de media, no la compatibilidad con R2 (PLAN.md §2.10).
+      - name: Levantar MinIO y crear los buckets
+        run: |
+          docker run -d --name minio --network host \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+
+          for intento in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/minio/health/live > /dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:9000/minio/health/live
+
+          docker run --rm --network host --entrypoint sh \
+            minio/mc:RELEASE.2025-04-16T18-13-26Z -c "
+              mc alias set local http://localhost:9000 minioadmin minioadmin &&
+              mc mb --ignore-existing local/forms-media-staging &&
+              mc mb --ignore-existing local/forms-media-public &&
+              mc anonymous set download local/forms-media-public
+            "
+
+      - name: Aplicar migraciones
+        run: npm run db:deploy
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      # `playwright.config.ts` compila el build de producción y arranca el
+      # servidor por su cuenta, en el puerto 3100 y con AUTH_DEV_BYPASS=1.
+      - name: Tests end-to-end
+        run: npm run test:e2e
+
+      - name: Guardar el informe
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            .playwright
+          retention-days: 7
+          if-no-files-found: ignore
+
+  demo:
+    name: Datos de demostración
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: typeapromo
+          POSTGRES_PASSWORD: typeapromo
+          POSTGRES_DB: typeapromo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U typeapromo -d typeapromo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://typeapromo:typeapromo@localhost:5432/typeapromo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Aplicar migraciones
+        run: npm run db:deploy
+
+      - name: Sembrar la demostración
+        run: npm run db:seed
+
+      # Repetirlo no debe duplicar nada: los identificadores son deterministas.
+      - name: Sembrar otra vez es un no-op (idempotencia)
+        run: |
+          antes=$(psql "$DATABASE_URL" -tAc "select count(*) from forms")
+          npm run db:seed
+          despues=$(psql "$DATABASE_URL" -tAc "select count(*) from forms")
+          if [ "$antes" != "$despues" ]; then
+            echo "::error::seed-demo.mjs no es idempotente: $antes formularios antes, $despues después."
+            exit 1
+          fi
+
+      - name: Y se puede retirar por completo
+        run: |
+          npm run db:seed:limpiar
+          restantes=$(psql "$DATABASE_URL" -tAc "select count(*) from forms")
+          if [ "$restantes" != "0" ]; then
+            echo "::error::--limpiar ha dejado $restantes formularios."
+            exit 1
+          fi

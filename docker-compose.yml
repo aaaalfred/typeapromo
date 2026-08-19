@@ -1,11 +1,33 @@
 name: typeapromo
 
+# La misma imagen sirve para migrar y para servir. La construye `app` y sólo
+# `app`: si ambos servicios declararan `build`, buildx exportaría la misma
+# etiqueta dos veces en paralelo y la construcción fallaría con «already exists».
+x-app-image: &app-image typeapromo-app:local
+
 services:
+  # Aplica las migraciones pendientes y termina. `app` no arranca hasta que
+  # este servicio sale con código 0, así que la aplicación nunca ve un esquema
+  # desactualizado. Es idempotente: en un `up` sin migraciones nuevas no hace nada.
+  migrate:
+    image: *app-image
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://typeapromo:typeapromo@postgres:5432/typeapromo
+    command: ['node', 'scripts/migrate.mjs']
+    restart: 'no'
+
   app:
+    image: *app-image
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       minio:

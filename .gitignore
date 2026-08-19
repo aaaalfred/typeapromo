@@ -44,3 +44,8 @@ Thumbs.db
 # varios
 *.tsbuildinfo
 .turbo
+
+# Playwright
+/.playwright/
+/playwright-report/
+/test-results/
