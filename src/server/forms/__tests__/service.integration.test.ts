@@ -331,4 +331,65 @@ describeDb('servicio de formularios · integración', () => {
       expect(error.status).toBe(404);
     }
   });
+
+  describe('slug editable y colisiones', () => {
+    it('crea formulario con slug personalizado elegido en la creación', async () => {
+      const slugPersonalizado = `mi-slug-custom-${sufijo}`;
+      const form = await service.createForm(
+        { title: `Custom Slug ${sufijo}`, slug: slugPersonalizado },
+        actor,
+      );
+      creados.push(form.id);
+
+      expect(form.slug).toBe(slugPersonalizado);
+    });
+
+    it('rechaza crear formulario si el slug personalizado ya está en uso (409 SLUG_EN_USO)', async () => {
+      const slugExistente = `slug-duplicado-${sufijo}`;
+      const form1 = await service.createForm(
+        { title: `Primero ${sufijo}`, slug: slugExistente },
+        actor,
+      );
+      creados.push(form1.id);
+
+      const error: unknown = await service
+        .createForm({ title: `Segundo ${sufijo}`, slug: slugExistente }, actor)
+        .catch((e: unknown) => e);
+
+      const { isFormsError } = await import('../errors');
+      expect(isFormsError(error)).toBe(true);
+      if (isFormsError(error)) {
+        expect(error.code).toBe('SLUG_EN_USO');
+        expect(error.status).toBe(409);
+      }
+    });
+
+    it('permite modificar el slug en cualquier estado si es único', async () => {
+      const form = await crear(`Editable en cualquier estado ${sufijo}`);
+      const nuevoSlug = `slug-renombrado-${sufijo}`;
+
+      const actualizado = await service.updateFormMetadata(
+        form.id,
+        { slug: nuevoSlug },
+        actor,
+      );
+      expect(actualizado.slug).toBe(nuevoSlug);
+    });
+
+    it('rechaza actualizar a un slug ocupado por otro formulario con 409 SLUG_EN_USO', async () => {
+      const form1 = await crear(`Form A ${sufijo}`);
+      const form2 = await crear(`Form B ${sufijo}`);
+
+      const error: unknown = await service
+        .updateFormMetadata(form2.id, { slug: form1.slug }, actor)
+        .catch((e: unknown) => e);
+
+      const { isFormsError } = await import('../errors');
+      expect(isFormsError(error)).toBe(true);
+      if (isFormsError(error)) {
+        expect(error.code).toBe('SLUG_EN_USO');
+        expect(error.status).toBe(409);
+      }
+    });
+  });
 });

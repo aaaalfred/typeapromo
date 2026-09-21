@@ -200,11 +200,11 @@ export function ListadoFormularios() {
   );
 
   const crear = useCallback(
-    async (titulo: string) => {
+    async (titulo: string, slug?: string) => {
       setCreando(true);
       setErrorCrear(null);
       try {
-        const { form } = await crearFormulario(titulo);
+        const { form } = await crearFormulario(titulo, slug);
         setDialogoCrear(false);
         // El formulario nace vacío: lo único útil que se puede hacer con él es
         // abrirlo en el editor, así que se navega directamente.

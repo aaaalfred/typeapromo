@@ -58,6 +58,7 @@ import { useAutoguardado } from './usar-autoguardado';
 
 export interface PropsEditorFormulario {
   readonly formularioId: string;
+  readonly slugInicial?: string;
   /** Borrador leído de `GET /api/forms/:id`. */
   readonly definicionInicial: FormDefinition;
   /** Revisión del borrador en el momento de la lectura. */
@@ -86,6 +87,7 @@ function pantallaDe(definicion: FormDefinition, seleccion: Seleccion): ScreenRef
 
 export function EditorFormulario({
   formularioId,
+  slugInicial,
   definicionInicial,
   revisionInicial,
   urlPublica = null,
@@ -95,6 +97,27 @@ export function EditorFormulario({
   retardoAutoguardadoMs,
 }: PropsEditorFormulario) {
   const [definicion, setDefinicion] = useState<FormDefinition>(definicionInicial);
+  const [slug, setSlug] = useState<string>(slugInicial ?? '');
+
+  const alActualizarSlug = useCallback(
+    async (nuevoSlug: string) => {
+      const res = await fetch(`/api/forms/${encodeURIComponent(formularioId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: nuevoSlug }),
+      });
+      const data = (await res.json()) as { form?: { slug: string }; error?: { message: string } };
+      if (!res.ok) {
+        throw new Error(data.error?.message ?? 'No se ha podido actualizar la dirección.');
+      }
+      if (data.form?.slug) {
+        setSlug(data.form.slug);
+      }
+    },
+    [formularioId],
+  );
+
+  const urlPublicaActual = urlPublica === null ? null : (slug ? `/f/${slug}` : urlPublica);
 
   const seleccion = useEstadoEditor((estado) => estado.seleccion);
   const pestana = useEstadoEditor((estado) => estado.pestana);
@@ -238,9 +261,9 @@ export function EditorFormulario({
 
           <div className="flex items-center gap-3">
             <IndicadorGuardado autoguardado={autoguardado} alRecargar={recargar} />
-            {urlPublica === null ? null : (
+            {urlPublicaActual === null ? null : (
               <a
-                href={urlPublica}
+                href={urlPublicaActual}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline dark:text-blue-300"
@@ -311,6 +334,8 @@ export function EditorFormulario({
               diagnostico={diagnostico}
               acciones={acciones}
               alCambiarPestana={cambiarPestana}
+              slug={slug}
+              alActualizarSlug={alActualizarSlug}
             />
           </div>
         </div>

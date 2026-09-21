@@ -35,6 +35,7 @@ import {
   borradorNoEncontrado,
   conflictoDeRevision,
   formularioNoEncontrado,
+  slugEnUso,
   transicionInvalida,
 } from './errors';
 import { reconcileDraftAssetRefs } from './media-refs';
@@ -348,7 +349,22 @@ export async function createForm(input: CreateFormInput, actor: Actor): Promise<
 
   return withSlugRetry(async () =>
     db.transaction(async (tx) => {
-      const slug = await uniqueSlug(tx, input.slug ?? title);
+      let slug: string;
+      if (input.slug !== undefined && input.slug.trim().length > 0) {
+        const slugNormalizado = input.slug.toLowerCase().trim();
+        const [existe] = await tx
+          .select({ id: forms.id })
+          .from(forms)
+          .where(eq(forms.slug, slugNormalizado))
+          .limit(1);
+
+        if (existe) {
+          throw slugEnUso('Esa dirección pública ya está en uso. Elige otra.');
+        }
+        slug = slugNormalizado;
+      } else {
+        slug = await uniqueSlug(tx, title);
+      }
 
       const [created] = await tx
         .insert(forms)
@@ -388,17 +404,14 @@ async function withSlugRetry<T>(operation: () => Promise<T>): Promise<T> {
     } catch (error) {
       if (!isUniqueViolation(error) || attempt === MAX_ATTEMPTS) {
         if (isUniqueViolation(error)) {
-          throw new FormsError(
-            'SLUG_EN_USO',
-            'No se ha podido reservar una dirección pública libre. Inténtalo de nuevo.',
-          );
+          throw slugEnUso();
         }
         throw error;
       }
     }
   }
   // Inalcanzable: el bucle o devuelve o lanza.
-  throw new FormsError('ERROR_INTERNO', 'No se ha podido crear el formulario.');
+  throw new FormsError('ERROR_INTERNO', 'No se ha podido procesar la solicitud.');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -512,7 +525,19 @@ export async function updateFormMetadata(
       }
 
       if (input.slug !== undefined) {
-        patch.slug = await uniqueSlug(tx, input.slug, formId);
+        const nuevoSlug = input.slug.toLowerCase().trim();
+        if (nuevoSlug !== current.slug) {
+          const [existe] = await tx
+            .select({ id: forms.id })
+            .from(forms)
+            .where(and(eq(forms.slug, nuevoSlug), ne(forms.id, formId)))
+            .limit(1);
+
+          if (existe) {
+            throw slugEnUso('Esa dirección pública ya está en uso. Elige otra.');
+          }
+          patch.slug = nuevoSlug;
+        }
       }
 
       if (input.title !== undefined && input.title !== current.title) {

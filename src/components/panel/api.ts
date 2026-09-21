@@ -176,10 +176,27 @@ export async function listarFormularios(
   });
 }
 
-export async function crearFormulario(titulo: string): Promise<RespuestaFormulario> {
+export async function crearFormulario(
+  titulo: string,
+  slug?: string,
+): Promise<RespuestaFormulario> {
+  const cuerpo: { title: string; slug?: string } = { title: titulo };
+  if (slug && slug.trim().length > 0) {
+    cuerpo.slug = slug.trim();
+  }
   return peticion<RespuestaFormulario>('/api/forms', {
     metodo: 'POST',
-    cuerpo: { title: titulo },
+    cuerpo,
+  });
+}
+
+export async function actualizarMetadatosFormulario(
+  id: string,
+  metadatos: { title?: string; slug?: string; archived?: boolean },
+): Promise<RespuestaFormulario> {
+  return peticion<RespuestaFormulario>(`/api/forms/${encodeURIComponent(id)}`, {
+    metodo: 'PATCH',
+    cuerpo: metadatos,
   });
 }
 

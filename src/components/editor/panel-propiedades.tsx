@@ -108,6 +108,8 @@ export interface PropsPanelPropiedades {
   readonly diagnostico: Diagnostico;
   readonly acciones: AccionesDocumento;
   readonly alCambiarPestana: (pestana: Pestana) => void;
+  readonly slug?: string;
+  readonly alActualizarSlug?: (nuevoSlug: string) => Promise<void>;
 }
 
 const PESTANAS_DE_PREGUNTA: readonly Pestana[] = [
@@ -126,13 +128,20 @@ export function PanelPropiedades({
   diagnostico,
   acciones,
   alCambiarPestana,
+  slug,
+  alActualizarSlug,
 }: PropsPanelPropiedades) {
   const contenedor = 'flex h-full flex-col overflow-y-auto';
 
   if (seleccion.tipo === 'ajustes') {
     return (
       <aside aria-label="Ajustes del formulario" className={contenedor}>
-        <PanelAjustes definicion={definicion} acciones={acciones} />
+        <PanelAjustes
+          definicion={definicion}
+          acciones={acciones}
+          slug={slug}
+          alActualizarSlug={alActualizarSlug}
+        />
       </aside>
     );
   }

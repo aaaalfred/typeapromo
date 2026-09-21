@@ -29,7 +29,7 @@ export interface PropsDialogoCrearFormulario {
   readonly abierto: boolean;
   readonly cargando?: boolean;
   readonly error?: string | null;
-  readonly onCrear: (titulo: string) => void;
+  readonly onCrear: (titulo: string, slug?: string) => void;
   readonly onCancelar: () => void;
 }
 
@@ -42,8 +42,13 @@ export function DialogoCrearFormulario({
 }: PropsDialogoCrearFormulario) {
   const idCampo = useId();
   const idError = `${idCampo}-error`;
+  const idSlug = useId();
+  const idSlugError = `${idSlug}-error`;
+
   const [titulo, setTitulo] = useState('');
+  const [slug, setSlug] = useState('');
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
+  const [errorSlugLocal, setErrorSlugLocal] = useState<string | null>(null);
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -53,10 +58,25 @@ export function DialogoCrearFormulario({
       return;
     }
     setErrorLocal(null);
-    onCrear(limpio);
+
+    const slugLimpio = slug.trim().toLowerCase();
+    if (slugLimpio.length > 0) {
+      if (slugLimpio.length < 3 || slugLimpio.length > 60) {
+        setErrorSlugLocal('El slug debe tener entre 3 y 60 caracteres.');
+        return;
+      }
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugLimpio)) {
+        setErrorSlugLocal('El slug solo puede contener letras minúsculas, números y guiones simples.');
+        return;
+      }
+    }
+    setErrorSlugLocal(null);
+
+    onCrear(limpio, slugLimpio.length > 0 ? slugLimpio : undefined);
   }
 
   const mensajeCampo = errorLocal;
+  const mensajeSlug = errorSlugLocal;
 
   return (
     <Dialogo
@@ -88,6 +108,40 @@ export function DialogoCrearFormulario({
             {mensajeCampo}
           </p>
         )}
+
+        <div className="mt-4">
+          <label htmlFor={idSlug} className="block text-sm font-medium">
+            Dirección pública (slug, opcional)
+          </label>
+          <div className="mt-2 flex items-center rounded-lg border border-[color:var(--tp-borde)] bg-[var(--tp-superficie)] px-3 text-sm">
+            <span className="text-neutral-500 dark:text-neutral-400 select-none">/f/</span>
+            <input
+              id={idSlug}
+              name="slug"
+              type="text"
+              value={slug}
+              placeholder="se-generara-del-titulo"
+              autoComplete="off"
+              maxLength={60}
+              disabled={cargando}
+              aria-invalid={mensajeSlug === null ? undefined : true}
+              aria-describedby={mensajeSlug === null ? undefined : idSlugError}
+              onChange={(evento) => {
+                setSlug(evento.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+              }}
+              className="w-full bg-transparent py-2 pl-1 pr-2 text-sm text-[color:var(--tp-texto)] placeholder:text-neutral-400 focus:outline-none"
+            />
+          </div>
+          {mensajeSlug === null ? (
+            <p className="mt-1 text-xs text-neutral-500">
+              Opcional. Si lo dejas vacío, se creará uno automáticamente a partir del título.
+            </p>
+          ) : (
+            <p id={idSlugError} role="alert" className="mt-1 text-sm text-[color:var(--tp-error)]">
+              {mensajeSlug}
+            </p>
+          )}
+        </div>
 
         {error === null ? null : (
           <Aviso titulo="No se ha podido crear el formulario" className="mt-4">

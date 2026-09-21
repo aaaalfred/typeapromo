@@ -10,8 +10,41 @@
  * `service.ts`.
  */
 
+/** Longitud mínima del slug. */
+export const SLUG_MIN_LENGTH = 3;
+
 /** Longitud máxima del slug, sufijo de desambiguación incluido. */
 export const SLUG_MAX_LENGTH = 60;
+
+/** Slugs reservados por el sistema que no pueden asignarse a formularios. */
+export const SLUGS_RESERVADOS = new Set([
+  'app',
+  'api',
+  'f',
+  'iniciar-sesion',
+  'crear-cuenta',
+  'verificar-correo',
+  'recuperar-contrasena',
+  'restablecer-contrasena',
+  'acceso-directo',
+  'acceso-denegado',
+  'auth',
+  'admin',
+  'login',
+  'logout',
+  'register',
+  'settings',
+  'dashboard',
+  'billing',
+  'plan',
+  'terms',
+  'privacy',
+]);
+
+/** Comprueba si un slug pertenece a las palabras reservadas del sistema. */
+export function esSlugReservado(slug: string): boolean {
+  return SLUGS_RESERVADOS.has(slug.toLowerCase().trim());
+}
 
 /** Slug usado cuando el título no aporta ni un solo carácter aprovechable. */
 export const SLUG_FALLBACK = 'formulario';
@@ -23,7 +56,23 @@ const MAX_SLUG_ATTEMPTS = 10_000;
 const COMBINING_MARKS = /\p{M}/gu;
 const NON_SLUG_CHARS = /[^a-z0-9]+/g;
 const EDGE_DASHES = /^-+|-+$/g;
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * Normaliza una cadena de texto a un formato de slug limpio:
+ * minúsculas, sin tildes, caracteres [a-z0-9-], sin guiones repetidos (--) ni en los bordes.
+ */
+export function normalizarSlug(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(COMBINING_MARKS, '')
+    .toLowerCase()
+    .replace(NON_SLUG_CHARS, '-')
+    .replace(/-+/g, '-')
+    .replace(EDGE_DASHES, '')
+    .slice(0, SLUG_MAX_LENGTH)
+    .replace(EDGE_DASHES, '');
+}
 
 /**
  * Convierte un texto libre en un slug seguro.
@@ -36,21 +85,18 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  *   en un único guion.
  */
 export function slugify(input: string): string {
-  const slug = input
-    .normalize('NFD')
-    .replace(COMBINING_MARKS, '')
-    .toLowerCase()
-    .replace(NON_SLUG_CHARS, '-')
-    .replace(EDGE_DASHES, '')
-    .slice(0, SLUG_MAX_LENGTH)
-    .replace(EDGE_DASHES, '');
-
-  return slug.length > 0 ? slug : SLUG_FALLBACK;
+  const slug = normalizarSlug(input);
+  return slug.length >= SLUG_MIN_LENGTH ? slug : SLUG_FALLBACK;
 }
 
-/** `true` si el valor ya es un slug canónico. */
+/** `true` si el valor ya es un slug canónico, no reservado y con longitud entre 3 y 60 caracteres. */
 export function isValidSlug(value: string): boolean {
-  return value.length > 0 && value.length <= SLUG_MAX_LENGTH && SLUG_PATTERN.test(value);
+  return (
+    value.length >= SLUG_MIN_LENGTH &&
+    value.length <= SLUG_MAX_LENGTH &&
+    SLUG_PATTERN.test(value) &&
+    !esSlugReservado(value)
+  );
 }
 
 /**

@@ -55,6 +55,7 @@ export default async function PaginaEditor({ params }: PropsPagina) {
   return (
     <EditorConMedia
       formularioId={formulario.id}
+      slugInicial={formulario.slug}
       definicionInicial={formulario.definition}
       revisionInicial={formulario.draft?.revision ?? 1}
       urlPublica={formulario.activeVersionId === null ? null : `/f/${formulario.slug}`}

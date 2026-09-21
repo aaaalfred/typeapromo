@@ -14,7 +14,12 @@ import { z } from 'zod';
 
 import { formDefinitionSchema } from '@/lib/forms';
 
-import { SLUG_MAX_LENGTH } from './slug';
+import {
+  SLUG_MAX_LENGTH,
+  SLUG_MIN_LENGTH,
+  SLUG_PATTERN,
+  esSlugReservado,
+} from './slug';
 
 /** Estados admitidos como filtro del listado. Copia literal del enum de PostgreSQL. */
 export const FORM_STATUSES = ['draft', 'published', 'closed', 'archived'] as const;
@@ -32,12 +37,21 @@ const titleSchema = z
   .min(1, { message: 'El título no puede estar vacío' })
   .max(300, { message: 'El título no puede superar los 300 caracteres' });
 
-const slugInputSchema = z
-  .string()
+export const slugInputSchema = z
+  .string({ message: 'El slug debe ser una cadena de texto' })
   .trim()
-  .min(1, { message: 'El slug no puede estar vacío' })
+  .toLowerCase()
+  .min(SLUG_MIN_LENGTH, {
+    message: `El slug debe tener al menos ${String(SLUG_MIN_LENGTH)} caracteres`,
+  })
   .max(SLUG_MAX_LENGTH, {
     message: `El slug no puede superar los ${String(SLUG_MAX_LENGTH)} caracteres`,
+  })
+  .regex(SLUG_PATTERN, {
+    message: 'El slug solo puede contener letras minúsculas, números y guiones simples',
+  })
+  .refine((val) => !esSlugReservado(val), {
+    message: 'Esa dirección no está disponible porque es una palabra reservada del sistema',
   });
 
 /* -------------------------------------------------------------------------- */

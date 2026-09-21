@@ -50,6 +50,21 @@ describe('updateFormSchema', () => {
     expect(updateFormSchema.parse({ slug: 'otro-slug' }).slug).toBe('otro-slug');
   });
 
+  it('rechaza un slug de menos de 3 caracteres', () => {
+    expect(updateFormSchema.safeParse({ slug: 'ab' }).success).toBe(false);
+  });
+
+  it('rechaza un slug con guiones dobles o formato inválido', () => {
+    expect(updateFormSchema.safeParse({ slug: 'slug--doble' }).success).toBe(false);
+    expect(updateFormSchema.safeParse({ slug: '-slug' }).success).toBe(false);
+    expect(updateFormSchema.safeParse({ slug: 'slug-' }).success).toBe(false);
+  });
+
+  it('rechaza un slug reservado', () => {
+    expect(updateFormSchema.safeParse({ slug: 'app' }).success).toBe(false);
+    expect(updateFormSchema.safeParse({ slug: 'iniciar-sesion' }).success).toBe(false);
+  });
+
   it('rechaza un cuerpo sin ningún metadato', () => {
     expect(updateFormSchema.safeParse({}).success).toBe(false);
   });

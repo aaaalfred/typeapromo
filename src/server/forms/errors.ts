@@ -108,3 +108,11 @@ export function planInsuficiente(message?: string, details?: FormsErrorDetails):
     details,
   );
 }
+
+export function slugEnUso(message?: string, details?: FormsErrorDetails): FormsError {
+  return new FormsError(
+    'SLUG_EN_USO',
+    message ?? 'Esa dirección pública ya está en uso. Elige otra.',
+    details,
+  );
+}

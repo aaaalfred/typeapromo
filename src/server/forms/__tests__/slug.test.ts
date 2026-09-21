@@ -52,15 +52,27 @@ describe('slugify', () => {
 });
 
 describe('isValidSlug', () => {
-  it('acepta solo la forma canónica', () => {
+  it('acepta solo la forma canónica entre 3 y 60 caracteres no reservada', () => {
     expect(isValidSlug('encuesta-2026')).toBe(true);
     expect(isValidSlug('encuesta')).toBe(true);
+    expect(isValidSlug('abc')).toBe(true);
+    expect(isValidSlug('ab')).toBe(false); // Demasiado corto (<3)
+    expect(isValidSlug('a')).toBe(false);
     expect(isValidSlug('Encuesta')).toBe(false);
     expect(isValidSlug('-encuesta')).toBe(false);
     expect(isValidSlug('encuesta-')).toBe(false);
     expect(isValidSlug('encuesta--2026')).toBe(false);
     expect(isValidSlug('')).toBe(false);
     expect(isValidSlug('a'.repeat(SLUG_MAX_LENGTH + 1))).toBe(false);
+  });
+
+  it('rechaza slugs reservados del sistema', () => {
+    expect(isValidSlug('app')).toBe(false);
+    expect(isValidSlug('api')).toBe(false);
+    expect(isValidSlug('f')).toBe(false);
+    expect(isValidSlug('iniciar-sesion')).toBe(false);
+    expect(isValidSlug('crear-cuenta')).toBe(false);
+    expect(isValidSlug('verificar-correo')).toBe(false);
   });
 });
 
