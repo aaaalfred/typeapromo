@@ -69,10 +69,21 @@ describeDb('rutas de /api/forms · integración', () => {
   beforeAll(async () => {
     auth.sesionActual.mockResolvedValue(sesionDe(USUARIO_ID));
 
-    const [{ db }, { users }] = await Promise.all([import('@/db'), import('@/db/schema')]);
+    const [{ db }, { users, workspaces, workspaceMembers }] = await Promise.all([
+      import('@/db'),
+      import('@/db/schema'),
+    ]);
     await db
       .insert(users)
       .values({ id: USUARIO_ID, email: sesionDe(USUARIO_ID).user.email, name: 'Integración' })
+      .onConflictDoNothing();
+    await db
+      .insert(workspaces)
+      .values({ id: USUARIO_ID, name: 'Integración Workspace', slug: `ws-${USUARIO_ID.slice(0, 8)}`, plan: 'pro' })
+      .onConflictDoNothing();
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: USUARIO_ID, userId: USUARIO_ID, role: 'owner' })
       .onConflictDoNothing();
 
     [listRoute, detailRoute, draftRoute, duplicateRoute, closeRoute, next] = await Promise.all([
@@ -94,7 +105,7 @@ describeDb('rutas de /api/forms · integración', () => {
   afterAll(async () => {
     if (!hasDatabase) return;
 
-    const [{ db, pool }, { forms, users }, { eq, inArray }] = await Promise.all([
+    const [{ db, pool }, { forms, users, workspaces, workspaceMembers }, { eq, inArray }] = await Promise.all([
       import('@/db'),
       import('@/db/schema'),
       import('drizzle-orm'),
@@ -102,6 +113,8 @@ describeDb('rutas de /api/forms · integración', () => {
     if (creados.length > 0) {
       await db.delete(forms).where(inArray(forms.id, creados));
     }
+    await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, USUARIO_ID));
+    await db.delete(workspaces).where(eq(workspaces.id, USUARIO_ID));
     await db.delete(users).where(eq(users.id, USUARIO_ID));
     await pool.end();
   });

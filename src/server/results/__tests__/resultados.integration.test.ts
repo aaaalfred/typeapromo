@@ -61,14 +61,16 @@ describeDb('resultados · integración', () => {
   let drizzle: DrizzleModule;
   let fixtures: FixturesModule;
 
+  const TEST_WS_ID = '90000000-0000-0000-0000-000000000003';
+  const sufijo = `res${Date.now().toString(36)}`;
+
   const actor: Actor = {
     id: null,
     email: 'fase8@typeapromo.local',
     name: 'Fase 8',
-    workspaceId: '00000000-0000-0000-0000-000000000001',
+    workspaceId: TEST_WS_ID,
     role: 'owner',
   };
-  const sufijo = `res${Date.now().toString(36)}`;
   const creados: string[] = [];
 
   /** Filtros por defecto, como los que arma la ruta sin parámetros. */
@@ -98,6 +100,16 @@ describeDb('resultados · integración', () => {
         import('drizzle-orm'),
         import('@/lib/forms/__tests__/fixtures'),
       ]);
+
+    await dbModule.db
+      .insert(schema.workspaces)
+      .values({
+        id: TEST_WS_ID,
+        name: 'Workspace Tests Resultados',
+        slug: `ws-res-${sufijo}`,
+        plan: 'pro',
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
@@ -105,6 +117,9 @@ describeDb('resultados · integración', () => {
     if (creados.length > 0) {
       await dbModule.db.delete(schema.forms).where(drizzle.inArray(schema.forms.id, creados));
     }
+    await dbModule.db
+      .delete(schema.workspaces)
+      .where(drizzle.eq(schema.workspaces.id, TEST_WS_ID));
     await dbModule.pool.end();
   });
 

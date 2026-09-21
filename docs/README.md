@@ -8,7 +8,9 @@ marcha y mantenerla viva**.
 |-----------|---------------|
 | [Puesta en marcha local](./puesta-en-marcha.md) | La primera vez que se clona el repositorio |
 | [Migraciones de base de datos](./migraciones.md) | Al cambiar el esquema y en cada despliegue |
-| [Aplicación de Slack (OIDC)](./slack.md) | Antes del primer despliegue en producción |
+| [Aplicación de Slack (OIDC)](./slack.md) | Opcional: inicio de sesión alternativo con Slack |
+| [Envío de correo con Resend](./resend.md) | Antes del primer despliegue en producción (verificación y contraseñas) |
+| [Suscripciones con Stripe](./stripe.md) | Antes de habilitar cobros y planes en producción |
 | [Buckets R2 y política CORS](./r2.md) | Antes del primer despliegue en producción |
 | [Despliegue y operación](./despliegue.md) | En cada despliegue, y para configurar el cron |
 | [Suite end-to-end](./e2e.md) | Al escribir o depurar pruebas de `e2e/` |

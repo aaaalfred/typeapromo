@@ -40,6 +40,7 @@ export interface VersionPublica {
 
 export interface FormularioPublico {
   readonly formId: string;
+  readonly workspaceId: string;
   readonly slug: string;
   readonly title: string;
   readonly estado: EstadoPublico;
@@ -86,6 +87,7 @@ export async function cargarFormularioPublico(
   const [fila] = await db
     .select({
       formId: forms.id,
+      workspaceId: forms.workspaceId,
       slug: forms.slug,
       title: forms.title,
       status: forms.status,
@@ -120,6 +122,7 @@ export async function cargarFormularioPublico(
 
   return {
     formId: fila.formId,
+    workspaceId: fila.workspaceId,
     slug: fila.slug,
     title: fila.title,
     estado,

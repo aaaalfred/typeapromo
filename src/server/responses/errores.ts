@@ -76,10 +76,6 @@ export function formularioNoEncontrado(): ResponsesError {
   return new ResponsesError('NO_ENCONTRADO', 'Este formulario no existe.');
 }
 
-export function formularioNoDisponible(mensaje: string): ResponsesError {
-  return new ResponsesError('FORMULARIO_NO_DISPONIBLE', mensaje);
-}
-
 export function sesionNoEncontrada(): ResponsesError {
   return new ResponsesError(
     'SESION_NO_ENCONTRADA',
@@ -90,7 +86,14 @@ export function sesionNoEncontrada(): ResponsesError {
 export function sesionCompletada(): ResponsesError {
   return new ResponsesError(
     'SESION_COMPLETADA',
-    'Ya has enviado tus respuestas a este formulario.',
+    'Esta respuesta ya se ha enviado y no se puede modificar.',
+  );
+}
+
+export function formularioNoDisponible(message?: string): ResponsesError {
+  return new ResponsesError(
+    'FORMULARIO_NO_DISPONIBLE',
+    message ?? 'Este formulario no admite respuestas en este momento.',
   );
 }
 

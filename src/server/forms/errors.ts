@@ -19,6 +19,7 @@ export const FORMS_ERROR_CODES = [
   'CONFLICTO_REVISION',
   'TRANSICION_INVALIDA',
   'SLUG_EN_USO',
+  'PLAN_INSUFICIENTE',
   'ERROR_INTERNO',
 ] as const;
 
@@ -32,6 +33,7 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<FormsErrorCode, number>> = {
   CONFLICTO_REVISION: 409,
   TRANSICION_INVALIDA: 409,
   SLUG_EN_USO: 409,
+  PLAN_INSUFICIENTE: 402,
   ERROR_INTERNO: 500,
 };
 
@@ -97,4 +99,12 @@ export function conflictoDeRevision(
 
 export function transicionInvalida(message: string, details?: FormsErrorDetails): FormsError {
   return new FormsError('TRANSICION_INVALIDA', message, details);
+}
+
+export function planInsuficiente(message?: string, details?: FormsErrorDetails): FormsError {
+  return new FormsError(
+    'PLAN_INSUFICIENTE',
+    message ?? 'El plan actual no permite realizar esta acción.',
+    details,
+  );
 }

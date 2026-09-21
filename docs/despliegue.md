@@ -34,10 +34,19 @@ PUBLIC_BASE_URL=https://formularios.tu-dominio.com
 AUTH_URL=https://formularios.tu-dominio.com
 AUTH_SECRET=<openssl rand -base64 32>
 
-# Slack — ver docs/slack.md
-SLACK_CLIENT_ID=…
-SLACK_CLIENT_SECRET=…
-SLACK_TEAM_ID=T01ABCDE2FG
+# Correo (transaccional) — ver docs/resend.md
+RESEND_API_KEY=re_...
+EMAIL_FROM="Typeapromo <noreply@tu-dominio.com>"
+
+# Facturación (Stripe) — ver docs/stripe.md
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRO_PRICE_ID=price_...
+
+# Slack (opcional, en stand-by) — ver docs/slack.md
+# SLACK_CLIENT_ID=…
+# SLACK_CLIENT_SECRET=…
+# SLACK_TEAM_ID=T01ABCDE2FG
 
 # Almacenamiento — ver docs/r2.md
 R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
@@ -81,7 +90,7 @@ por HTTPS (`PLAN.md` §2.3). Tiene tres protecciones, y las tres importan:
 
 ```bash
 curl -s https://formularios.tu-dominio.com/api/health
-# {"status":"ok","db":"up","authMode":"slack"}   ← authMode DEBE ser "slack"
+# {"status":"ok","db":"up","authMode":"email"}   ← authMode DEBE ser "email" (o "slack")
 
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   https://formularios.tu-dominio.com/api/auth/acceso-directo
@@ -150,14 +159,14 @@ haría pensar que el cron tiene mal el secreto cuando el problema está en el de
 y la auditoría externa del bypass.
 
 ```json
-{ "status": "ok", "db": "up", "authMode": "slack" }
+{ "status": "ok", "db": "up", "authMode": "email" }
 ```
 
 | Campo | Valores | Significado |
 |-------|---------|-------------|
 | `status` | `ok`, `degraded` | `degraded` (HTTP 503) en cuanto `db` no sea `up` |
 | `db` | `up`, `down`, `not-configured` | `not-configured` es que falta `DATABASE_URL`, distinto de que la base no responda |
-| `authMode` | `slack`, `dev-bypass` | `dev-bypass` si `AUTH_DEV_BYPASS=1` |
+| `authMode` | `email`, `slack`, `dev-bypass` | `email` por defecto, `slack` si Slack OIDC está activo, `dev-bypass` si `AUTH_DEV_BYPASS=1` |
 
 Nunca expone cadenas de conexión, credenciales ni detalles del error.
 

@@ -4,7 +4,8 @@ Formularios conversacionales para un equipo interno: se crean en un editor visua
 versionado, se responden por un enlace público sin registrarse y se analizan en un panel con
 exportación a CSV.
 
-El acceso administrativo es exclusivamente con **Slack** (OpenID Connect, un solo workspace); las
+El acceso administrativo es con **email + contraseña** y verificación vía **Resend**, o con
+**Slack** (OpenID Connect, en stand-by / opcional); cobro por workspace con **Stripe**; las
 imágenes viven en **Cloudflare R2**; los datos, en **PostgreSQL**. Todo en español.
 
 El alcance funcional está en [`PR.md`](./PR.md) y el plan de ejecución por fases en
@@ -35,7 +36,8 @@ El alcance funcional está en [`PR.md`](./PR.md) y el plan de ejecución por fas
 | Estilos | Tailwind CSS 4 · Radix/shadcn · `dnd-kit` · Motion |
 | Base de datos | PostgreSQL 17 + Drizzle ORM, migraciones versionadas |
 | Contratos | Zod, compartido entre editor, API y experiencia pública |
-| Autenticación | Auth.js como cliente OIDC de Slack, sesión en base de datos |
+| Autenticación | Email + contraseña (Argon2id), verificación con Resend · Slack OIDC opcional |
+| Facturación | Stripe (Checkout, Customer Portal, webhooks idempotentes, planes Free y Pro) |
 | Almacenamiento | Cloudflare R2 en producción; MinIO en local |
 | Tests | Vitest (unitarias e integración) · Playwright (end-to-end) · axe-core |
 
@@ -139,10 +141,11 @@ dos vistas diverjan, y conviene no revertirla.
 y la auditoría externa del bypass.
 
 ```json
-{ "status": "ok", "db": "up", "authMode": "slack" }
+{ "status": "ok", "db": "up", "authMode": "email" }
 ```
 
-`authMode: "dev-bypass"` significa que ese despliegue tiene abierto el acceso sin credenciales.
+`authMode` puede ser `"email"` (modo estándar con email y contraseña), `"slack"` (cuando
+Slack OIDC está configurado) o `"dev-bypass"` si el bypass de desarrollo está activo.
 Nunca se exponen cadenas de conexión, credenciales ni detalles del error.
 
 ## Documentación
@@ -151,7 +154,9 @@ Nunca se exponen cadenas de conexión, credenciales ni detalles del error.
 |-----------|---------------|
 | [Puesta en marcha local](./docs/puesta-en-marcha.md) | La primera vez que se clona el repositorio |
 | [Migraciones](./docs/migraciones.md) | Al cambiar el esquema y en cada despliegue |
-| [Aplicación de Slack](./docs/slack.md) | Antes del primer despliegue en producción |
+| [Envío de correo con Resend](./docs/resend.md) | Configuración de Resend y fallback a consola en desarrollo |
+| [Suscripciones con Stripe](./docs/stripe.md) | Configuración de Stripe, webhooks y límites de planes |
+| [Aplicación de Slack](./docs/slack.md) | Opcional: inicio de sesión alternativo con Slack |
 | [Buckets R2 y CORS](./docs/r2.md) | Antes del primer despliegue en producción |
 | [Despliegue y operación](./docs/despliegue.md) | En cada despliegue, y para el cron de limpieza |
 | [Suite end-to-end](./docs/e2e.md) | Al escribir o depurar pruebas de `e2e/` |

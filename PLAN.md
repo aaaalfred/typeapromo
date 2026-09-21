@@ -9,8 +9,10 @@ Plan de ejecución para `PR.md`. Este documento manda sobre el original allí do
 | Tema | Decisión |
 |------|----------|
 | Empaquetado | **8 PRs apilados**, uno por fase, cada uno mergeable y con CI en verde. No una rama única. |
-| Slack | Workspace único, plan Free. Validación por comparación directa de `team_id`. Sin Enterprise Grid. |
-| Auth en dev/CI | **Login sin credenciales tras flag** (`AUTH_DEV_BYPASS`). Slack OIDC solo en producción. |
+| Autenticación | **Email + contraseña** (Argon2id) con verificación y recuperación vía **Resend**. Slack OIDC pasa a stand-by / opcional. |
+| Multitenancy | **Aislamiento por workspace** (`workspaces`, `workspace_members`, `forms.workspace_id`). Cada usuario tiene su workspace personal. |
+| Facturación | **Stripe por workspace**: planes Free (1 form publicado, 100 respuestas/mes) y Pro (ilimitado, 10k respuestas/mes). |
+| Auth en dev/CI | **Login sin credenciales tras flag** (`AUTH_DEV_BYPASS`). Se mantiene intacto para desarrollo y E2E. |
 | Limpieza R2 | **Endpoint `/api/internal/cleanup` con secreto**, invocado por el cron del servidor. Sin scheduler en proceso. |
 | Sesión pública | **Cookie `HttpOnly`**. El token no viaja nunca en la URL. |
 
@@ -140,6 +142,12 @@ Delta sobre lo descrito en `PR.md`; el resto se mantiene.
 - **`form_versions`** — única por `(form_id, version_number)`.
 - **`rate_limits`** *(nueva)* — `key_hash`, `window_start`, `count`. Purgada por el cron.
 - **`forms.active_version_id`** — clave foránea nullable a `form_versions`; un borrador nunca publicado la tiene a `null`.
+- **`workspaces`** *(nueva)* — `id`, `name`, `slug`, `stripe_customer_id`, `stripe_subscription_id`, `plan` (`free` | `pro`), `created_at`, `updated_at`.
+- **`workspace_members`** *(nueva)* — `workspace_id`, `user_id`, `role` (`owner` | `admin` | `member`).
+- **`stripe_events`** *(nueva)* — `id`, `type`, `status`, `created_at` (idempotencia de webhooks de Stripe).
+- **`users.password_hash`**, **`users.is_active`** — autenticación por contraseña y desactivación de usuarios.
+- **`email_verification_tokens`**, **`password_reset_tokens`** — tokens seguros con hash SHA-256 y TTL.
+- **`forms.workspace_id`** — clave foránea no nula hacia `workspaces.id` (aislamiento multi-tenant).
 
 ---
 
@@ -151,9 +159,16 @@ PUBLIC_BASE_URL
 AUTH_SECRET
 AUTH_URL
 
-SLACK_CLIENT_ID          # solo producción
-SLACK_CLIENT_SECRET      # solo producción
-SLACK_TEAM_ID            # solo producción
+RESEND_API_KEY           # clave API de Resend (fallback a consola stdout si falta)
+EMAIL_FROM               # remitente verificado (ej: "Typeapromo <noreply@dominio.com>")
+
+STRIPE_SECRET_KEY        # clave secreta de Stripe (sk_test_... o sk_live_...)
+STRIPE_WEBHOOK_SECRET    # secreto de firma del webhook de Stripe (whsec_...)
+STRIPE_PRO_PRICE_ID      # ID del precio recurrente Pro de Stripe (price_...)
+
+SLACK_CLIENT_ID          # opcional (en stand-by)
+SLACK_CLIENT_SECRET      # opcional (en stand-by)
+SLACK_TEAM_ID            # opcional (en stand-by)
 AUTH_DEV_BYPASS          # solo desarrollo y CI — ausente en producción
 
 R2_ENDPOINT
@@ -179,3 +194,32 @@ Riesgos vivos, por orden de probabilidad:
 2. **Primer contacto con R2 real.** MinIO no garantiza compatibilidad de presign ni de CORS. Probar pronto, no en la fase 6.
 3. **El bypass de autenticación.** Mitigado por triple protección, pero es la única puerta que no debe abrirse nunca en producción.
 4. **`schemaVersion` olvidado.** Barato ahora, migración de datos si se olvida.
+
+---
+
+## 8. Evolución: Auth Email + Resend + Multi-tenant Workspace + Facturación con Stripe
+
+Ajuste arquitectónico para retirar Slack del camino crítico:
+
+### Fase 1 — Modelo de datos multi-tenant y migración (Completada)
+- Nuevas tablas: `workspaces`, `workspace_members`, `stripe_events`, `email_verification_tokens`, `password_reset_tokens`.
+- Campos añadidos: `users.password_hash`, `users.is_active`, `forms.workspace_id`.
+- Migración `0001_nebulous_marrow.sql` generada con backfill automático al workspace por defecto.
+- Aislamiento estricto por `workspace_id` en todas las consultas de `forms`, publicación y resultados.
+
+### Fase 2 — Autenticación por email, verificación y contraseñas con Resend (Completada)
+- Hashing de contraseñas con **Argon2id** (mínimo 10 caracteres).
+- Generación de tokens seguros con hash SHA-256 (verificación: 24h, restablecimiento: 1h).
+- Servicio de correo con **Resend** y fallback automático a `stdout` en desarrollo si `RESEND_API_KEY` no está configurada.
+- Rutas API de registro (`POST /api/auth/registro`), verificación (`GET /api/auth/verificar`), login (`POST /api/auth/iniciar`), recuperación (`POST /api/auth/recuperar`), restablecimiento (`POST /api/auth/restablecer`) y reenvío de verificación (`POST /api/auth/reenviar-verificacion`).
+- Rate limiting específico por IP en memoria y en base de datos.
+- Interfaz de usuario completa en español para registro, login, verificación y reseteo. Slack pasa a botón opcional cuando sus credenciales están presentes.
+
+### Fase 3 — Facturación con Stripe, límites de plan y gestión de suscripciones (Completada)
+- Modelo de planes:
+  - **Free**: 1 formulario publicado activo, 100 respuestas/mes por workspace.
+  - **Pro**: Formularios publicados ilimitados, 10.000 respuestas/mes por workspace.
+- Servicio de billing y sincronización idempotente de eventos de Stripe (`stripe_events`).
+- Gates de publicación (`comprobarLimitePublicacion()`, HTTP 402 `PLAN_INSUFICIENTE`) y de respuestas (`comprobarLimiteRespuestas()`, HTTP 409 `FORMULARIO_NO_DISPONIBLE`).
+- Endpoints de Stripe: Checkout (`POST /api/billing/checkout`), Customer Portal (`POST /api/billing/portal`), resumen (`GET /api/billing/resumen`) y webhook (`POST /api/stripe/webhook`).
+- Vista de suscripción y uso en `/app/plan` con barras de progreso y acciones de checkout y portal.

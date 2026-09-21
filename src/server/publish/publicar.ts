@@ -34,6 +34,7 @@ import {
   datosInvalidos,
   formularioNoEncontrado,
   getForm,
+  planInsuficiente,
   transicionInvalida,
   type Actor,
   type FormDetail,
@@ -165,6 +166,15 @@ async function publicarEnTransaccion(
 
   const decision = decidirPublicacion(current.status);
   if (!decision.ok) throw transicionInvalida(decision.message);
+
+  // Comprobar límite de publicación del plan si el formulario no está publicado actualmente
+  if (current.status !== 'published') {
+    const { comprobarLimitePublicacion } = await import('@/server/billing/servicio');
+    const verificacionPlan = await comprobarLimitePublicacion(actor.workspaceId);
+    if (!verificacionPlan.permitido) {
+      throw planInsuficiente(verificacionPlan.motivo);
+    }
+  }
 
   const [draft] = await tx
     .select({ definition: formDrafts.definition, revision: formDrafts.revision })

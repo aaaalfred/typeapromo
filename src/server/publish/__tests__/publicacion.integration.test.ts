@@ -42,16 +42,18 @@ describeDb('publicación versionada · integración', () => {
   let fixtures: FixturesModule;
   let formsLib: FormsLibModule;
 
-  /** Actor sin fila en `users`: `published_by` es nulable. */
+  const TEST_WS_ID = '90000000-0000-0000-0000-000000000001';
+  const sufijo = `pub${Date.now().toString(36)}`;
+
+  /** Actor con workspace en plan pro para permitir múltiples publicaciones de test. */
   const actor: Actor = {
     id: null,
     email: 'fase7@typeapromo.local',
     name: 'Fase 7',
-    workspaceId: '00000000-0000-0000-0000-000000000001',
+    workspaceId: TEST_WS_ID,
     role: 'owner',
   };
 
-  const sufijo = `pub${Date.now().toString(36)}`;
   const creados: string[] = [];
   let assetId: string | null = null;
 
@@ -65,6 +67,16 @@ describeDb('publicación versionada · integración', () => {
       import('@/lib/forms/__tests__/fixtures'),
       import('@/lib/forms'),
     ]);
+
+    await dbModule.db
+      .insert(schema.workspaces)
+      .values({
+        id: TEST_WS_ID,
+        name: 'Workspace Tests Publicacion',
+        slug: `ws-pub-${sufijo}`,
+        plan: 'pro',
+      })
+      .onConflictDoNothing();
 
     const [asset] = await dbModule.db
       .insert(schema.mediaAssets)
@@ -91,6 +103,9 @@ describeDb('publicación versionada · integración', () => {
         .delete(schema.mediaAssets)
         .where(drizzle.eq(schema.mediaAssets.id, assetId));
     }
+    await dbModule.db
+      .delete(schema.workspaces)
+      .where(drizzle.eq(schema.workspaces.id, TEST_WS_ID));
     await dbModule.pool.end();
   });
 

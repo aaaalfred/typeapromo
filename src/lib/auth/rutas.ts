@@ -39,6 +39,7 @@ const PUBLICAS_EXACTAS: ReadonlySet<string> = new Set(['/', '/api/health']);
 const PREFIJOS_PUBLICOS: readonly string[] = [
   '/f',
   '/api/auth',
+  '/api/stripe',
   RUTA_LOGIN,
   RUTA_ACCESO_DENEGADO,
   RUTA_REGISTRO,

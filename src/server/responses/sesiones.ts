@@ -46,6 +46,7 @@ import type { DbHandle } from '@/server/forms/db';
 import {
   ResponsesError,
   datosInvalidos,
+  formularioNoDisponible,
   sesionCompletada,
   sesionNoEncontrada,
 } from './errores';
@@ -172,6 +173,13 @@ export function aVistaSesion(sesion: SesionCargada): VistaSesion {
 export async function crearSesion(
   formulario: FormularioDisponible,
 ): Promise<SesionCreada> {
+  // Comprobar límite mensual de respuestas según el plan del workspace
+  const { comprobarLimiteRespuestas } = await import('@/server/billing/servicio');
+  const verificacionPlan = await comprobarLimiteRespuestas(formulario.workspaceId);
+  if (!verificacionPlan.permitido) {
+    throw formularioNoDisponible(verificacionPlan.motivo);
+  }
+
   const token = crearToken();
   const tokenHash = hashDeToken(token);
   const definicion = formulario.version.definition;

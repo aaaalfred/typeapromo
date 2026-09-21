@@ -1,12 +1,12 @@
-# Aplicación de Slack (Sign in with Slack / OpenID Connect)
+# Aplicación de Slack (Sign in with Slack / OpenID Connect) — Modo Stand-by
 
-El acceso al panel es exclusivamente con Slack. Esta guía crea la aplicación, saca las tres
-variables que necesita el servidor y explica los sitios donde el flujo suele romperse.
+> **Nota importante:** El acceso principal de Typeapromo es mediante **Email + Contraseña** y verificación con **Resend**. La autenticación con Slack se conserva en el código y en el flujo OIDC pero ha pasado a estar **en stand-by como método secundario opcional**: solo se habilita el botón de acceso con Slack si se configuran las variables de entorno correspondientes.
+
+Esta guía documenta la creación de la aplicación en Slack y las variables necesarias si se desea ofrecer este método de acceso alternativo para el equipo.
 
 El producto usa el flujo **moderno de OpenID Connect** (`openid`, `profile`, `email`), no el
 antiguo `identity.*` de Sign in with Slack v1. La configuración del cliente está en
-[`src/auth.ts`](../src/auth.ts) con los tres endpoints fijados de forma explícita — no se usa
-descubrimiento OIDC, así que el arranque no depende de una llamada de red:
+[`src/auth.ts`](../src/auth.ts) con los tres endpoints fijados de forma explícita:
 
 | Fase | Endpoint |
 |------|----------|

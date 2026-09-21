@@ -31,12 +31,11 @@ desactualizado. Comprobación:
 
 ```bash
 curl http://localhost:3000/api/health
-# {"status":"ok","db":"up","authMode":"slack"}
+# {"status":"ok","db":"up","authMode":"email"}
 ```
 
-`authMode` es `slack` porque el compose **no** define `AUTH_DEV_BYPASS`, y eso es deliberado: sin
-credenciales de Slack no hay forma de entrar al panel desde el compose. Para trabajar en el panel,
-usa el camino 2.
+`authMode` es `email` por defecto (o `slack` si se configuran credenciales de Slack). El compose
+**no** define `AUTH_DEV_BYPASS`, por lo que se accede registrándose con email o usando el camino 2.
 
 ## Camino 2 — Infraestructura en Docker, aplicación en el host
 
@@ -98,7 +97,11 @@ levantada se ejecutan todos.
 Todas están documentadas en [`.env.example`](../.env.example). Resumen por bloques:
 
 - **Núcleo**: `DATABASE_URL`, `PUBLIC_BASE_URL`, `AUTH_SECRET`, `AUTH_URL`.
-- **Slack, solo producción**: `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_TEAM_ID`
+- **Correo (Resend)**: `RESEND_API_KEY`, `EMAIL_FROM` ([cómo funciona](./resend.md)). En desarrollo local,
+  si no se define `RESEND_API_KEY`, los correos se muestran directamente por consola (`stdout`).
+- **Facturación (Stripe)**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`
+  ([cómo funciona](./stripe.md)).
+- **Slack (opcional, en stand-by)**: `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_TEAM_ID`
   ([cómo se obtienen](./slack.md)).
 - **Bypass, solo desarrollo y CI**: `AUTH_DEV_BYPASS`.
 - **Almacenamiento**: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,

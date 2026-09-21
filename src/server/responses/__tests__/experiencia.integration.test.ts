@@ -50,14 +50,16 @@ describeDb('experiencia de respuesta · integración', () => {
   let drizzle: DrizzleModule;
   let fixtures: FixturesModule;
 
+  const TEST_WS_ID = '90000000-0000-0000-0000-000000000002';
+  const sufijo = `resp${Date.now().toString(36)}`;
+
   const actor: Actor = {
     id: null,
     email: 'fase7@typeapromo.local',
     name: 'Fase 7',
-    workspaceId: '00000000-0000-0000-0000-000000000001',
+    workspaceId: TEST_WS_ID,
     role: 'owner',
   };
-  const sufijo = `resp${Date.now().toString(36)}`;
   const creados: string[] = [];
 
   beforeAll(async () => {
@@ -73,6 +75,16 @@ describeDb('experiencia de respuesta · integración', () => {
         import('drizzle-orm'),
         import('@/lib/forms/__tests__/fixtures'),
       ]);
+
+    await dbModule.db
+      .insert(schema.workspaces)
+      .values({
+        id: TEST_WS_ID,
+        name: 'Workspace Tests Experiencia',
+        slug: `ws-exp-${sufijo}`,
+        plan: 'pro',
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
@@ -82,6 +94,9 @@ describeDb('experiencia de respuesta · integración', () => {
         .delete(schema.forms)
         .where(drizzle.inArray(schema.forms.id, creados));
     }
+    await dbModule.db
+      .delete(schema.workspaces)
+      .where(drizzle.eq(schema.workspaces.id, TEST_WS_ID));
     await dbModule.pool.end();
   });
 

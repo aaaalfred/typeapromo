@@ -45,12 +45,18 @@ export function CabeceraPanel({
           >
             Typeapromo
           </Link>
-          <nav aria-label="Secciones del panel">
+          <nav aria-label="Secciones del panel" className="flex items-center gap-3">
             <Link
               href={RUTA_FORMULARIOS}
               className="tp-foco rounded-[var(--tp-radio)] px-1 py-1 text-sm text-[color:var(--tp-texto-suave)] underline-offset-4 transition-colors hover:text-[color:var(--tp-texto)] hover:underline"
             >
               Formularios
+            </Link>
+            <Link
+              href="/app/plan"
+              className="tp-foco rounded-[var(--tp-radio)] px-1 py-1 text-sm text-[color:var(--tp-texto-suave)] underline-offset-4 transition-colors hover:text-[color:var(--tp-texto)] hover:underline"
+            >
+              Plan
             </Link>
           </nav>
         </div>
