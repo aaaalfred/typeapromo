@@ -9,8 +9,15 @@
 
 import { createHash } from 'node:crypto';
 
-/** Ámbitos de limitación. Cada endpoint público cuenta en su propio cubo. */
-export const AMBITOS_LIMITE = ['sesiones', 'respuestas', 'completar'] as const;
+export const AMBITOS_LIMITE = [
+  'sesiones',
+  'respuestas',
+  'completar',
+  'registro',
+  'login',
+  'recuperar',
+  'reenviar-verificacion',
+] as const;
 
 export type AmbitoLimite = (typeof AMBITOS_LIMITE)[number];
 

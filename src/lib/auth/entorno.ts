@@ -10,7 +10,7 @@
  * Modo de autenticación efectivo. `dev-bypass` es deliberadamente observable
  * desde fuera (`GET /api/health`), protección 2 de PLAN.md.
  */
-export type ModoAuth = 'dev-bypass' | 'slack';
+export type ModoAuth = 'dev-bypass' | 'email' | 'no-configurado';
 
 export interface CredencialesSlack {
   clientId: string;
@@ -58,5 +58,8 @@ export function esSlackConfigurado(): boolean {
 
 /** Modo mostrado por `/api/health` y por la franja de aviso. */
 export function modoAuth(): ModoAuth {
-  return esBypassActivo() ? 'dev-bypass' : 'slack';
+  if (esBypassActivo()) return 'dev-bypass';
+  const dbUrl = leerVariable('DATABASE_URL');
+  if (dbUrl !== null) return 'email';
+  return 'no-configurado';
 }

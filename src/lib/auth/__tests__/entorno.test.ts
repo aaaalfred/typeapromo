@@ -10,6 +10,7 @@ import {
 
 const VARIABLES = [
   'AUTH_DEV_BYPASS',
+  'DATABASE_URL',
   'SLACK_TEAM_ID',
   'SLACK_CLIENT_ID',
   'SLACK_CLIENT_SECRET',
@@ -51,8 +52,12 @@ describe('esBypassActivo', () => {
 });
 
 describe('modoAuth', () => {
-  it('refleja el bypass, que es lo que publica /api/health', () => {
-    expect(modoAuth()).toBe('slack');
+  it('refleja el modo email si hay base de datos, dev-bypass si está activo o no-configurado si falta todo', () => {
+    expect(modoAuth()).toBe('no-configurado');
+
+    process.env.DATABASE_URL = 'postgresql://localhost:5432/db';
+    expect(modoAuth()).toBe('email');
+
     process.env.AUTH_DEV_BYPASS = '1';
     expect(modoAuth()).toBe('dev-bypass');
   });

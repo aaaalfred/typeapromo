@@ -21,7 +21,11 @@ export type MotivoRechazo =
   /** Slack no devolvió el claim del workspace en el perfil. */
   | 'claim-ausente'
   /** La cuenta es válida, pero pertenece a otro workspace. */
-  | 'workspace-ajeno';
+  | 'workspace-ajeno'
+  /** La cuenta de usuario está desactivada. */
+  | 'cuenta-desactivada'
+  /** El usuario aún no ha verificado su correo electrónico. */
+  | 'email-no-verificado';
 
 export interface ClaimsSlack {
   /** `https://slack.com/team_id`, o `null` si no vino o vino vacío. */
@@ -30,11 +34,16 @@ export interface ClaimsSlack {
   userId: string | null;
 }
 
-/** Identidad de Slack tal y como queda persistida en `users`. */
-export interface IdentidadSlackPersistida {
-  slackUserId: string | null;
-  slackTeamId: string | null;
+/** Identidad del usuario tal y como queda persistida en `users` o en la sesión. */
+export interface IdentidadUsuarioPersistida {
+  slackUserId?: string | null;
+  slackTeamId?: string | null;
+  passwordHash?: string | null;
+  emailVerified?: Date | string | null;
+  isActive?: boolean | null;
 }
+
+export type IdentidadSlackPersistida = IdentidadUsuarioPersistida;
 
 export type ResultadoGuard =
   | { permitido: true; teamId: string | null }
@@ -44,6 +53,8 @@ const MOTIVOS: readonly MotivoRechazo[] = [
   'workspace-no-configurado',
   'claim-ausente',
   'workspace-ajeno',
+  'cuenta-desactivada',
+  'email-no-verificado',
 ];
 
 /** Textos de rechazo, en español y sin jerga de OAuth para el usuario final. */
@@ -62,6 +73,16 @@ export const MENSAJES_RECHAZO: Record<MotivoRechazo, { titulo: string; detalle: 
     titulo: 'Tu cuenta pertenece a otro workspace',
     detalle:
       'La autenticación con Slack ha funcionado, pero esta herramienta solo admite miembros del workspace autorizado. Entra con una cuenta de ese workspace.',
+  },
+  'cuenta-desactivada': {
+    titulo: 'Cuenta desactivada',
+    detalle:
+      'Tu cuenta de usuario ha sido desactivada. Ponte en contacto con el administrador del sistema.',
+  },
+  'email-no-verificado': {
+    titulo: 'Correo no verificado',
+    detalle:
+      'Debes verificar tu dirección de correo electrónico antes de poder acceder al panel.',
   },
 };
 
@@ -158,10 +179,23 @@ export function evaluarPerfilSlack(
  * `null`); solo se le deja pasar si el bypass sigue activo.
  */
 export function evaluarSesionPersistida(
-  usuario: IdentidadSlackPersistida,
+  usuario: IdentidadUsuarioPersistida,
   teamIdAutorizado: string | null | undefined,
   opciones: { bypassActivo: boolean },
 ): ResultadoGuard {
+  // 1. Usuario con credenciales de email o verificado
+  const esUsuarioEmail =
+    (typeof usuario.passwordHash === 'string' && usuario.passwordHash.trim() !== '') ||
+    Boolean(usuario.emailVerified);
+
+  if (esUsuarioEmail) {
+    if (usuario.isActive === false) {
+      return { permitido: false, motivo: 'cuenta-desactivada' };
+    }
+    return { permitido: true, teamId: null };
+  }
+
+  // 2. Usuario sin identidad de Slack
   const sinIdentidadSlack =
     typeof usuario.slackUserId !== 'string' || usuario.slackUserId.trim() === '';
 
@@ -171,5 +205,6 @@ export function evaluarSesionPersistida(
       : { permitido: false, motivo: 'claim-ausente' };
   }
 
+  // 3. Usuario que inició por Slack (sin passwordHash)
   return evaluarWorkspace(usuario.slackTeamId, teamIdAutorizado);
 }

@@ -185,6 +185,36 @@ describe('evaluarSesionPersistida', () => {
       }),
     ).toEqual({ permitido: false, motivo: 'workspace-ajeno' });
   });
+
+  it('permite a un usuario con passwordHash activo sin comprobar Slack', () => {
+    expect(
+      evaluarSesionPersistida(
+        { passwordHash: '$argon2id$v=19$mock', isActive: true },
+        null, // Sin Slack configurado
+        opciones,
+      ),
+    ).toEqual({ permitido: true, teamId: null });
+  });
+
+  it('permite a un usuario con emailVerified activo sin comprobar Slack', () => {
+    expect(
+      evaluarSesionPersistida(
+        { emailVerified: new Date(), isActive: true },
+        null, // Sin Slack configurado
+        opciones,
+      ),
+    ).toEqual({ permitido: true, teamId: null });
+  });
+
+  it('rechaza a un usuario de email con cuenta desactivada (isActive: false)', () => {
+    expect(
+      evaluarSesionPersistida(
+        { passwordHash: '$argon2id$v=19$mock', isActive: false },
+        TEAM_AUTORIZADO,
+        opciones,
+      ),
+    ).toEqual({ permitido: false, motivo: 'cuenta-desactivada' });
+  });
 });
 
 describe('mensajes', () => {

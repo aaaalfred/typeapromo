@@ -14,7 +14,9 @@ type DatabaseStatus = 'up' | 'down' | 'not-configured'
  * `dev-bypass` es comprobable desde fuera a propósito (PLAN.md, «Seguridad del bypass»,
  * protección 2): permite auditar sin entrar al servidor si producción tiene el flag abierto.
  */
-type AuthMode = 'dev-bypass' | 'slack'
+import { modoAuth, type ModoAuth } from '@/lib/auth/entorno'
+
+type AuthMode = ModoAuth
 
 interface HealthPayload {
   status: 'ok' | 'degraded'
@@ -25,7 +27,7 @@ interface HealthPayload {
 const CONNECT_TIMEOUT_MS = 3_000
 
 function resolveAuthMode(): AuthMode {
-  return process.env.AUTH_DEV_BYPASS === '1' ? 'dev-bypass' : 'slack'
+  return modoAuth()
 }
 
 async function checkDatabase(): Promise<DatabaseStatus> {

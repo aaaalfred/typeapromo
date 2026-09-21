@@ -10,6 +10,14 @@
 export const RUTA_LOGIN = '/iniciar-sesion';
 /** Página de acceso denegado. */
 export const RUTA_ACCESO_DENEGADO = '/acceso-denegado';
+/** Página de registro / crear cuenta. */
+export const RUTA_REGISTRO = '/crear-cuenta';
+/** Página de verificación de correo. */
+export const RUTA_VERIFICAR_CORREO = '/verificar-correo';
+/** Página de recuperación y restablecimiento de contraseña. */
+export const RUTA_RESTABLECER_CONTRASENA = '/restablecer-contrasena';
+/** Página para solicitar reenvío de correo de verificación. */
+export const RUTA_REENVIAR_VERIFICACION = '/reenviar-verificacion';
 /** Raíz del panel autenticado. Todo lo que cuelga de aquí está protegido. */
 export const RUTA_PANEL = '/app';
 
@@ -33,6 +41,10 @@ const PREFIJOS_PUBLICOS: readonly string[] = [
   '/api/auth',
   RUTA_LOGIN,
   RUTA_ACCESO_DENEGADO,
+  RUTA_REGISTRO,
+  RUTA_VERIFICAR_CORREO,
+  RUTA_RESTABLECER_CONTRASENA,
+  RUTA_REENVIAR_VERIFICACION,
 ];
 
 /** Normaliza quitando la barra final, salvo en la raíz. */
@@ -72,9 +84,18 @@ export function normalizarDestino(destino: unknown): string {
   if (valor.startsWith('//') || valor.startsWith('/\\')) return RUTA_PANEL;
   if (valor.includes('\\')) return RUTA_PANEL;
 
-  // Volver al login o al aviso de rechazo tras entrar sería un bucle.
+  // Volver a rutas de autenticación tras entrar sería confuso o un bucle.
   const soloRuta = normalizarRuta(valor.split('?')[0] ?? '');
-  if (empiezaPorSegmento(soloRuta, RUTA_LOGIN) || empiezaPorSegmento(soloRuta, RUTA_ACCESO_DENEGADO)) {
+  const esRutaAuth = [
+    RUTA_LOGIN,
+    RUTA_ACCESO_DENEGADO,
+    RUTA_REGISTRO,
+    RUTA_VERIFICAR_CORREO,
+    RUTA_RESTABLECER_CONTRASENA,
+    RUTA_REENVIAR_VERIFICACION,
+  ].some((ruta) => empiezaPorSegmento(soloRuta, ruta));
+
+  if (esRutaAuth) {
     return RUTA_PANEL;
   }
 

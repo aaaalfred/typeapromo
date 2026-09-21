@@ -22,6 +22,10 @@ describe('esRutaPublica', () => {
     '/api/auth/acceso-directo',
     '/iniciar-sesion',
     '/acceso-denegado',
+    '/crear-cuenta',
+    '/verificar-correo',
+    '/restablecer-contrasena',
+    '/reenviar-verificacion',
   ])('deja pública %s', (ruta) => {
     expect(esRutaPublica(ruta)).toBe(true);
   });

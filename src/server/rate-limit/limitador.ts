@@ -37,20 +37,16 @@ export interface PoliticaLimite {
 }
 
 const UN_MINUTO = 60_000;
+const UNA_HORA = 60 * UN_MINUTO;
 
-/**
- * Políticas por ámbito. Ventanas cortas a propósito: la tabla es efímera y un
- * pico legítimo (varias personas tras el mismo NAT corporativo) debe
- * desbloquearse en minutos, no en horas.
- *
- * Los números salen de lo que necesita una persona respondiendo de verdad:
- * crear sesión ocurre una vez por formulario, guardar respuesta una vez por
- * pantalla, y completar una vez por recorrido.
- */
 export const POLITICAS: Readonly<Record<AmbitoLimite, PoliticaLimite>> = {
   sesiones: { maximo: 20, ventanaMs: 10 * UN_MINUTO },
   respuestas: { maximo: 120, ventanaMs: UN_MINUTO },
   completar: { maximo: 30, ventanaMs: 10 * UN_MINUTO },
+  registro: { maximo: 5, ventanaMs: UNA_HORA },
+  login: { maximo: 5, ventanaMs: 15 * UN_MINUTO },
+  recuperar: { maximo: 3, ventanaMs: UNA_HORA },
+  'reenviar-verificacion': { maximo: 3, ventanaMs: UNA_HORA },
 };
 
 export interface ResultadoLimite {

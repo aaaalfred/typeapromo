@@ -52,10 +52,13 @@ export interface PerfilSlack {
 }
 
 declare module 'next-auth' {
-  /** Identidad de Slack persistida junto al usuario. */
+  /** Identidad persistida junto al usuario. */
   interface User {
     slackUserId?: string | null;
     slackTeamId?: string | null;
+    passwordHash?: string | null;
+    emailVerified?: Date | null;
+    isActive?: boolean | null;
   }
 
   interface Session {
@@ -66,6 +69,9 @@ declare module 'next-auth' {
       image?: string | null;
       slackUserId: string | null;
       slackTeamId: string | null;
+      passwordHash?: string | null;
+      emailVerified?: Date | null;
+      isActive?: boolean;
     };
   }
 }
@@ -166,6 +172,9 @@ export const configuracionAuth: NextAuthConfig = {
           image: user.image ?? null,
           slackUserId: user.slackUserId ?? null,
           slackTeamId: user.slackTeamId ?? null,
+          passwordHash: user.passwordHash ?? null,
+          emailVerified: user.emailVerified ?? null,
+          isActive: user.isActive ?? true,
         },
       };
     },
