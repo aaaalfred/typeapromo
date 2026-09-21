@@ -30,7 +30,8 @@ export default async function PaginaPlan({ searchParams }: PropiedadesPagina) {
   const cancelado = primerValor(params['cancelado']) === '1';
 
   const esOwner = actor.role === 'owner';
-  const esPro = resumen.plan === 'pro';
+  const esPagado = resumen.esPagado;
+  const esPastDue = resumen.planStatus === 'past_due';
 
   const porcentajeForms =
     resumen.formulariosPublicadosMax === Infinity
@@ -60,7 +61,19 @@ export default async function PaginaPlan({ searchParams }: PropiedadesPagina) {
         >
           <p className="font-semibold">¡Suscripción actualizada con éxito!</p>
           <p className="mt-0.5 text-xs text-emerald-800/80 dark:text-emerald-300/80">
-            Tu espacio de trabajo ahora cuenta con todas las ventajas del plan Pro.
+            Tu espacio de trabajo ahora cuenta con todas las ventajas del plan Business.
+          </p>
+        </div>
+      ) : null}
+
+      {esPastDue ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-500/30 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <p className="font-semibold">Pago pendiente</p>
+          <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-300/80">
+            El último cobro de tu suscripción no se ha podido procesar. Actualiza tu método de pago para mantener el plan Business activo.
           </p>
         </div>
       ) : null}
@@ -92,27 +105,26 @@ export default async function PaginaPlan({ searchParams }: PropiedadesPagina) {
             <h2 className="text-base font-semibold text-[color:var(--tp-texto)]">Plan actual</h2>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${
-                esPro
+                esPagado
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                   : 'bg-black/10 text-black/80 dark:bg-white/10 dark:text-white/80'
               }`}
             >
-              {esPro ? 'Plan Pro' : 'Plan Free'}
+              {esPagado ? 'Plan Business' : 'Sin suscripción'}
             </span>
           </div>
 
-          <p className="mt-4 text-3xl font-bold tracking-tight text-[color:var(--tp-texto)]">
-            {esPro ? '29 €' : '0 €'}
-            <span className="text-sm font-normal text-[color:var(--tp-texto-suave)]"> / mes</span>
+          <p className="mt-4 text-2xl font-bold tracking-tight text-[color:var(--tp-texto)]">
+            {esPagado ? 'Suscripción activa' : 'Plan básico'}
           </p>
           <p className="mt-1 text-xs text-[color:var(--tp-texto-suave)]">
-            {esPro
-              ? 'Formularios publicados ilimitados y hasta 10.000 respuestas al mes.'
-              : '1 formulario publicado simultáneo y 100 respuestas al mes.'}
+            {esPagado
+              ? 'Formularios publicados ilimitados y hasta 10.000 respuestas completadas al mes.'
+              : '1 formulario publicado simultáneo y 100 respuestas completadas al mes.'}
           </p>
 
           <div className="mt-6 border-t border-[color:var(--tp-borde)] pt-6">
-            {esPro && resumen.stripeCustomerId && resumen.stripeConfigurado ? (
+            {resumen.stripeCustomerId && resumen.stripeConfigurado ? (
               esOwner ? (
                 <form method="post" action="/api/billing/portal">
                   <button
@@ -127,19 +139,19 @@ export default async function PaginaPlan({ searchParams }: PropiedadesPagina) {
                   Solo el propietario del espacio puede modificar la suscripción.
                 </p>
               )
-            ) : !esPro && resumen.stripeConfigurado ? (
+            ) : !esPagado && resumen.stripeConfigurado ? (
               esOwner ? (
                 <form method="post" action="/api/billing/checkout">
                   <button
                     type="submit"
                     className="flex w-full items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90"
                   >
-                    Actualizar a Plan Pro (29 €/mes)
+                    Suscribirse al Plan Business
                   </button>
                 </form>
               ) : (
                 <p className="text-xs text-[color:var(--tp-texto-suave)]">
-                  Pide al propietario del espacio que actualice al plan Pro.
+                  Pide al propietario del espacio que active la suscripción.
                 </p>
               )
             ) : null}
@@ -169,17 +181,17 @@ export default async function PaginaPlan({ searchParams }: PropiedadesPagina) {
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
                   <div
                     className={`h-full transition-all ${
-                      porcentajeForms >= 100 && !esPro ? 'bg-amber-500' : 'bg-black dark:bg-white'
+                      porcentajeForms >= 100 && !esPagado ? 'bg-amber-500' : 'bg-black dark:bg-white'
                     }`}
-                    style={{ width: `${esPro ? 10 : porcentajeForms}%` }}
+                    style={{ width: `${esPagado ? 10 : porcentajeForms}%` }}
                   />
                 </div>
               </div>
 
-              {/* Respuestas este mes */}
+              {/* Respuestas completadas este mes */}
               <div>
                 <div className="flex justify-between text-xs">
-                  <span className="font-medium text-[color:var(--tp-texto)]">Respuestas este mes</span>
+                  <span className="font-medium text-[color:var(--tp-texto)]">Respuestas completadas este mes</span>
                   <span className="font-mono text-[color:var(--tp-texto-suave)]">
                     {resumen.respuestasMes} / {resumen.respuestasMesMax}
                   </span>
@@ -197,7 +209,7 @@ export default async function PaginaPlan({ searchParams }: PropiedadesPagina) {
           </div>
 
           <p className="mt-6 text-[11px] text-[color:var(--tp-texto-suave)]">
-            El cómputo de respuestas se reinicia el primer día de cada mes natural.
+            El cómputo de respuestas completadas se reinicia el primer día de cada mes natural (UTC). Las sesiones abandonadas no consumen cupo.
           </p>
         </section>
       </div>

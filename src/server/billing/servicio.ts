@@ -23,9 +23,19 @@ export const LIMITES_PLAN = {
 export type PlanTipo = 'free' | 'pro';
 export type PlanStatusTipo = 'active' | 'past_due' | 'canceled' | 'trialing';
 
+/**
+ * Determina si el workspace tiene una suscripción de pago activa.
+ * Solo `plan = 'pro'` junto a `planStatus` en 'active' o 'trialing' se considera pagado.
+ * 'past_due' o 'canceled' se tratan como impago/gratuito.
+ */
+export function esWorkspacePagado(plan: PlanTipo, planStatus: PlanStatusTipo): boolean {
+  return plan === 'pro' && (planStatus === 'active' || planStatus === 'trialing');
+}
+
 export interface ResumenBilling {
   plan: PlanTipo;
   planStatus: PlanStatusTipo;
+  esPagado: boolean;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   formulariosPublicados: number;
@@ -64,7 +74,8 @@ export async function obtenerResumenBilling(workspaceId: string): Promise<Resume
 
   const plan: PlanTipo = workspace?.plan === 'pro' ? 'pro' : 'free';
   const planStatus: PlanStatusTipo = workspace?.planStatus ?? 'active';
-  const limites = LIMITES_PLAN[plan];
+  const pagado = esWorkspacePagado(plan, planStatus);
+  const limites = pagado ? LIMITES_PLAN.pro : LIMITES_PLAN.free;
 
   // 1. Contar formularios publicados activos en el workspace
   const [conteoForms] = await db
@@ -74,13 +85,19 @@ export async function obtenerResumenBilling(workspaceId: string): Promise<Resume
 
   const formulariosPublicados = conteoForms?.total ?? 0;
 
-  // 2. Contar respuestas/sesiones del mes actual
+  // 2. Contar respuestas completadas del mes actual (las abandonadas no consumen cupo)
   const inicioMes = inicioDeMesActual();
   const [conteoRespuestas] = await db
     .select({ total: sql<number>`count(*)::int` })
     .from(responseSessions)
     .innerJoin(forms, eq(responseSessions.formId, forms.id))
-    .where(and(eq(forms.workspaceId, workspaceId), gte(responseSessions.startedAt, inicioMes)));
+    .where(
+      and(
+        eq(forms.workspaceId, workspaceId),
+        eq(responseSessions.status, 'completed'),
+        gte(responseSessions.completedAt, inicioMes),
+      ),
+    );
 
   const respuestasMes = conteoRespuestas?.total ?? 0;
 
@@ -90,6 +107,7 @@ export async function obtenerResumenBilling(workspaceId: string): Promise<Resume
   return {
     plan,
     planStatus,
+    esPagado: pagado,
     stripeCustomerId: workspace?.stripeCustomerId ?? null,
     stripeSubscriptionId: workspace?.stripeSubscriptionId ?? null,
     formulariosPublicados,
@@ -103,16 +121,11 @@ export async function obtenerResumenBilling(workspaceId: string): Promise<Resume
 }
 
 /**
- * Comprueba si el workspace puede publicar un formulario adicional.
+ * Evalúa si se permite publicar un formulario según el resumen de uso.
  */
-export async function comprobarLimitePublicacion(
-  workspaceId: string,
-): Promise<{ permitido: boolean; motivo?: string }> {
-  const resumen = await obtenerResumenBilling(workspaceId);
-  if (resumen.plan === 'pro') {
-    return { permitido: true };
-  }
-
+export function evaluarLimitePublicacion(
+  resumen: Pick<ResumenBilling, 'formulariosPublicados' | 'formulariosPublicadosMax'>,
+): { permitido: boolean; motivo?: string } {
   if (resumen.formulariosPublicados >= resumen.formulariosPublicadosMax) {
     return {
       permitido: false,
@@ -125,24 +138,39 @@ export async function comprobarLimitePublicacion(
 }
 
 /**
+ * Evalúa si se permite recibir una respuesta según el resumen de uso mensual.
+ */
+export function evaluarLimiteRespuestas(
+  resumen: Pick<ResumenBilling, 'respuestasMes' | 'respuestasMesMax'>,
+): { permitido: boolean; motivo?: string } {
+  if (resumen.respuestasMes >= resumen.respuestasMesMax) {
+    return {
+      permitido: false,
+      motivo: 'Este formulario no admite más respuestas este mes.',
+    };
+  }
+
+  return { permitido: true };
+}
+
+/**
+ * Comprueba si el workspace puede publicar un formulario adicional.
+ */
+export async function comprobarLimitePublicacion(
+  workspaceId: string,
+): Promise<{ permitido: boolean; motivo?: string }> {
+  const resumen = await obtenerResumenBilling(workspaceId);
+  return evaluarLimitePublicacion(resumen);
+}
+
+/**
  * Comprueba si el workspace del formulario admite recibir una nueva respuesta/sesión este mes.
  */
 export async function comprobarLimiteRespuestas(
   workspaceId: string,
 ): Promise<{ permitido: boolean; motivo?: string }> {
   const resumen = await obtenerResumenBilling(workspaceId);
-  if (resumen.plan === 'pro') {
-    return { permitido: true };
-  }
-
-  if (resumen.respuestasMes >= resumen.respuestasMesMax) {
-    return {
-      permitido: false,
-      motivo: 'Este formulario ha alcanzado el límite mensual de respuestas de su plan.',
-    };
-  }
-
-  return { permitido: true };
+  return evaluarLimiteRespuestas(resumen);
 }
 
 /**

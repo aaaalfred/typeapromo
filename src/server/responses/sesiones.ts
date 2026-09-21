@@ -45,8 +45,8 @@ import type { DbHandle } from '@/server/forms/db';
 
 import {
   ResponsesError,
+  cupoExcedido,
   datosInvalidos,
-  formularioNoDisponible,
   sesionCompletada,
   sesionNoEncontrada,
 } from './errores';
@@ -177,7 +177,7 @@ export async function crearSesion(
   const { comprobarLimiteRespuestas } = await import('@/server/billing/servicio');
   const verificacionPlan = await comprobarLimiteRespuestas(formulario.workspaceId);
   if (!verificacionPlan.permitido) {
-    throw formularioNoDisponible(verificacionPlan.motivo);
+    throw cupoExcedido(verificacionPlan.motivo);
   }
 
   const token = crearToken();

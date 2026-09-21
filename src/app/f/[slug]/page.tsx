@@ -87,6 +87,21 @@ export default async function PaginaFormularioPublico({ params }: Props) {
   const token = almacen.get(nombreCookieSesion(formulario.formId))?.value;
   const sesion = await cargarSesion(formulario.formId, token);
 
+  // Si no hay una sesión previa en curso, comprobar que el formulario admite más respuestas este mes
+  if (sesion === null) {
+    const { comprobarLimiteRespuestas } = await import('@/server/billing/servicio');
+    const verificacionPlan = await comprobarLimiteRespuestas(formulario.workspaceId);
+    if (!verificacionPlan.permitido) {
+      return (
+        <PantallaMensaje
+          titulo={formulario.title}
+          mensaje={verificacionPlan.motivo ?? 'Este formulario no admite más respuestas este mes.'}
+          {...(formulario.version === null ? {} : { tema: formulario.version.definition.theme })}
+        />
+      );
+    }
+  }
+
   const definicion = sesion?.definicion ?? formulario.version.definition;
   const medios = await resolverMediosDeDocumento(definicion);
 

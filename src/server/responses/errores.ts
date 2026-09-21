@@ -16,6 +16,7 @@ export const RESPONSES_ERROR_CODES = [
   'NO_ENCONTRADO',
   'DATOS_INVALIDOS',
   'FORMULARIO_NO_DISPONIBLE',
+  'CUPO_EXCEDIDO',
   'SESION_NO_ENCONTRADA',
   'SESION_COMPLETADA',
   'DEMASIADAS_PETICIONES',
@@ -30,6 +31,8 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<ResponsesErrorCode, number>> = {
   DATOS_INVALIDOS: 400,
   /** 409 y no 404: el formulario existe, pero ahora mismo no admite respuestas. */
   FORMULARIO_NO_DISPONIBLE: 409,
+  /** 403: el formulario o workspace ha superado el cupo de respuestas del mes. */
+  CUPO_EXCEDIDO: 403,
   /**
    * 404 y no 401: no hay identidad que autenticar. La cookie caducó, se borró o
    * apunta a una sesión que ya no existe, y lo que procede es empezar de nuevo.
@@ -94,6 +97,13 @@ export function formularioNoDisponible(message?: string): ResponsesError {
   return new ResponsesError(
     'FORMULARIO_NO_DISPONIBLE',
     message ?? 'Este formulario no admite respuestas en este momento.',
+  );
+}
+
+export function cupoExcedido(message?: string): ResponsesError {
+  return new ResponsesError(
+    'CUPO_EXCEDIDO',
+    message ?? 'Este formulario no admite más respuestas este mes.',
   );
 }
 
