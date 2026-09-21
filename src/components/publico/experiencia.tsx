@@ -68,6 +68,7 @@ export function ExperienciaPublica({
    * vuelva a probar en lugar de arrastrar el error para siempre.
    */
   const creacion = useRef<Promise<void> | null>(null);
+  const pantallaFinalAlcanzada = useRef<ScreenRef | null>(null);
   const [reanudada] = useState(
     () => sesionInicial !== null && Object.keys(sesionInicial.respuestas).length > 0,
   );
@@ -91,13 +92,26 @@ export function ExperienciaPublica({
         evento.bloque.id,
         evento.respuesta?.valor ?? null,
       );
+      if (evento.hacia.kind !== 'block') {
+        pantallaFinalAlcanzada.current = evento.hacia;
+      }
     },
     [asegurarSesion, formId],
   );
 
   const onCompletar = useCallback(async (): Promise<void> => {
     await completarSesionPublica(formId);
-  }, [formId]);
+
+    const hacia = pantallaFinalAlcanzada.current;
+    const targetId = hacia?.kind === 'end_screen' ? hacia.id : definicion.defaultEndScreenId;
+    const pantallaFinal =
+      definicion.endScreens.find((s) => s.id === targetId) ?? definicion.endScreens[0];
+    const redirectUrl = pantallaFinal?.redirectUrl;
+
+    if (redirectUrl && /^https?:\/\/[^\s]+$/.test(redirectUrl)) {
+      window.location.assign(redirectUrl);
+    }
+  }, [definicion.defaultEndScreenId, definicion.endScreens, formId]);
 
   const resolverMedia = useCallback(
     (assetId: string): MediaResuelta | null => medios[assetId] ?? null,

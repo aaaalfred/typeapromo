@@ -123,6 +123,31 @@ describe('estructura del documento', () => {
     expect(errorCodes(report)).toContain('ID_COLLISION');
   });
 
+  it('valida la URL de redirección en las pantallas finales', () => {
+    const validReport = validateForPublication(
+      makeForm({
+        blocks: [shortText('q1')],
+        endScreens: [ending('end', { redirectUrl: 'https://ejemplo.com/gracias' })],
+      }),
+    );
+    expect(validReport.ok).toBe(true);
+
+    const invalidReport = validateForPublication(
+      makeRawForm({
+        blocks: [shortText('q1')],
+        endScreens: [ending('end', { redirectUrl: 'javascript:alert(1)' as unknown as string })],
+      }),
+    );
+    expect(invalidReport.ok).toBe(false);
+    expect(errorCodes(invalidReport)).toContain('SCHEMA_INVALID');
+
+    const semanticReport = validateDefinition({
+      ...makeForm({ blocks: [shortText('q1')] }),
+      endScreens: [{ ...ending('end'), redirectUrl: 'ftp://invalido.com' }],
+    });
+    expect(semanticReport.errors.map((e) => e.code)).toContain('INVALID_REDIRECT_URL');
+  });
+
   it('detecta identificadores de regla repetidos', () => {
     const report = validateForPublication(
       makeForm({

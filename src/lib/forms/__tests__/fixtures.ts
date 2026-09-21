@@ -113,8 +113,8 @@ export const rating = (
   } = {},
 ) => ({ id, type: 'rating', title: `Valoración ${id}`, ...opts }) satisfies BlockInput;
 
-export const ending = (id: string) =>
-  ({ id, type: 'ending', title: `Final ${id}` }) satisfies EndScreenInput;
+export const ending = (id: string, opts: Partial<EndScreenInput> = {}) =>
+  ({ id, type: 'ending', title: `Final ${id}`, ...opts }) satisfies EndScreenInput;
 
 /** Recupera un bloque ya parseado por identificador, o falla el test. */
 export function blockOf(definition: FormDefinition, id: string) {

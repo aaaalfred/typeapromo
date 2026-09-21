@@ -196,6 +196,54 @@ describe('finalización', () => {
     });
     expect(await screen.findByRole('heading', { name: /¡Gracias!/ })).toBeInTheDocument();
   });
+
+  it('redirige a redirectUrl al llegar a la pantalla final si está configurada', async () => {
+    const usuario = userEvent.setup();
+    const assignMock = vi.fn();
+    const originalLocation = window.location;
+    // @ts-expect-error - jsdom location mock
+    delete window.location;
+    // @ts-expect-error - jsdom location mock
+    window.location = { ...originalLocation, assign: assignMock };
+
+    try {
+      const defConRedirect: FormDefinition = {
+        ...definicion,
+        endScreens: [
+          {
+            id: 'gracias',
+            type: 'ending',
+            title: '¡Gracias!',
+            redirectUrl: 'https://ejemplo.com/exito',
+          },
+        ],
+      };
+
+      render(
+        <ExperienciaPublica
+          formId={FORM_ID}
+          slug={SLUG}
+          definicion={defConRedirect}
+          medios={{}}
+          sesionInicial={{
+            respuestas: { nombre: 'Ada' },
+            pantalla: { kind: 'block', id: 'empresa' },
+            completada: false,
+          }}
+        />,
+      );
+
+      await usuario.click(screen.getByRole('button', { name: /siguiente|continuar|enviar/i }));
+
+      await waitFor(() => {
+        expect(completarSesionPublica).toHaveBeenCalledWith(FORM_ID);
+        expect(assignMock).toHaveBeenCalledWith('https://ejemplo.com/exito');
+      });
+    } finally {
+      // @ts-expect-error - jsdom location mock
+      window.location = originalLocation;
+    }
+  });
 });
 
 describe('reanudación', () => {

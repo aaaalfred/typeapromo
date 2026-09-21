@@ -57,6 +57,11 @@ export type ValidationError = IssueBase &
     | { readonly code: 'WELCOME_NOT_FIRST'; readonly blockId: string; readonly position: number }
     | { readonly code: 'DEFAULT_END_SCREEN_NOT_FOUND'; readonly endScreenId: string }
     | {
+        readonly code: 'INVALID_REDIRECT_URL';
+        readonly endScreenId: string;
+        readonly redirectUrl: string;
+      }
+    | {
         readonly code: 'INVALID_SCALE_RANGE';
         readonly blockId: string;
         readonly min: number;
@@ -324,6 +329,18 @@ function checkStructure(
         message: `El identificador «${screen.id}» lo usan a la vez un bloque y una pantalla final.`,
         path: ['endScreens', position, 'id'],
       });
+    }
+
+    if (screen.redirectUrl !== undefined) {
+      if (!/^https?:\/\/[^\s]+$/.test(screen.redirectUrl)) {
+        errors.push({
+          code: 'INVALID_REDIRECT_URL',
+          endScreenId: screen.id,
+          redirectUrl: screen.redirectUrl,
+          message: `La URL de redirección de la pantalla final «${screen.id}» debe comenzar por http:// o https://.`,
+          path: ['endScreens', position, 'redirectUrl'],
+        });
+      }
     }
   });
 

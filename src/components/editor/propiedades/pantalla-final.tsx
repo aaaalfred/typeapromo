@@ -88,6 +88,22 @@ export function PanelPantallaFinal({ definicion, pantalla, acciones }: PropsPane
         />
       </Seccion>
 
+      <Seccion titulo="Redirección" descripcion="Redirigir automáticamente a otra dirección al terminar.">
+        <CampoTexto
+          etiqueta="URL de redirección"
+          valor={pantalla.redirectUrl ?? ''}
+          maxLength={2000}
+          marcador="https://tuweb.com/gracias"
+          ayuda="Si se indica, el encuestado será redirigido a esta dirección tras guardar sus respuestas."
+          alCambiar={(texto) => {
+            acciones.reemplazarPantallaFinal({
+              ...pantalla,
+              redirectUrl: texto.trim() === '' ? undefined : texto.trim(),
+            });
+          }}
+        />
+      </Seccion>
+
       <Seccion titulo="Imagen">
         <SelectorMedia
           etiqueta="Imagen de la pantalla"

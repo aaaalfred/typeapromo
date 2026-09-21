@@ -262,6 +262,7 @@ export const endingBlockSchema = z
     body: z.string().max(5000).optional(),
     ctaLabel: z.string().max(120).optional(),
     ctaUrl: httpUrlSchema.optional(),
+    redirectUrl: httpUrlSchema.optional(),
   })
   .strict();
 
