@@ -33,3 +33,39 @@ body {
 *::after {
   box-sizing: border-box;
 }
+
+/*
+ * Renderer de formularios (fase 4).
+ *
+ * Solo vive aquí lo que no puede expresarse como utilidad de Tailwind sin
+ * repetirlo en decenas de sitios. Todo el color sale de las variables `--tp-*`
+ * que genera `@/lib/theme`, nunca de clases condicionales.
+ */
+@layer components {
+  /* Anillo de foco visible y coherente en todos los controles del formulario. */
+  .tp-foco {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+
+  .tp-foco:focus-visible {
+    outline: 2px solid var(--tp-foco, #2563eb);
+    outline-offset: 2px;
+  }
+
+  /* El renderer nunca hereda la tipografía del panel que lo contiene. */
+  .tp-raiz {
+    font-family: var(--tp-fuente);
+    line-height: 1.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-raiz *,
+  .tp-raiz *::before,
+  .tp-raiz *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
