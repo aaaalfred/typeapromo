@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   return route(async () => {
-    await requireActor();
+    const actor = await requireActor();
     const query = parseWith(
       listFormsQuerySchema,
       listFormsQueryFromSearchParams(request.nextUrl.searchParams),
     );
-    return jsonResponse(await listForms(query));
+    return jsonResponse(await listForms(query, actor));
   });
 }

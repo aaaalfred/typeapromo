@@ -16,8 +16,11 @@
 
 export * from "./enums";
 export * from "./auth";
+export * from "./workspaces";
 export * from "./forms";
 export * from "./media";
 export * from "./responses";
 export * from "./rate-limits";
+export * from "./billing";
 export * from "./relations";
+

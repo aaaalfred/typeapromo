@@ -58,7 +58,15 @@ export interface ContextoResultados {
  * apareciendo en el selector**: esconderlo haría desaparecer sus respuestas sin
  * decir por qué.
  */
-export async function cargarContexto(formId: string): Promise<ContextoResultados | null> {
+export async function cargarContexto(
+  formId: string,
+  workspaceId?: string,
+): Promise<ContextoResultados | null> {
+  const conditions = [eq(forms.id, formId)];
+  if (workspaceId !== undefined) {
+    conditions.push(eq(forms.workspaceId, workspaceId));
+  }
+
   const [form] = await db
     .select({
       id: forms.id,
@@ -68,7 +76,7 @@ export async function cargarContexto(formId: string): Promise<ContextoResultados
       activeVersionId: forms.activeVersionId,
     })
     .from(forms)
-    .where(eq(forms.id, formId))
+    .where(and(...conditions))
     .limit(1);
 
   if (form === undefined) return null;

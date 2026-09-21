@@ -91,15 +91,20 @@ function isUniqueViolation(error: unknown): boolean {
  * Va sobre `forms` a secas, sin joins: PostgreSQL no admite `FOR UPDATE` sobre
  * el lado nulable de un `LEFT JOIN`.
  */
-async function lockForm(handle: DbHandle, formId: string) {
+async function lockForm(handle: DbHandle, formId: string, workspaceId?: string) {
+  const conditions = [eq(forms.id, formId)];
+  if (workspaceId !== undefined) {
+    conditions.push(eq(forms.workspaceId, workspaceId));
+  }
   const [row] = await handle
     .select({
       id: forms.id,
+      workspaceId: forms.workspaceId,
       status: forms.status,
       activeVersionId: forms.activeVersionId,
     })
     .from(forms)
-    .where(eq(forms.id, formId))
+    .where(and(...conditions))
     .limit(1)
     .for('update');
 
@@ -126,7 +131,7 @@ export async function publishForm(
       const creada = await db.transaction(async (tx) => publicarEnTransaccion(tx, formId, input, actor));
       // El detalle se lee fuera de la transacción, ya con `active_version_id`
       // movido: es una lectura y no necesita el bloqueo.
-      const form = await getForm(formId);
+      const form = await getForm(formId, actor);
       return { form, version: creada.version, warnings: creada.warnings };
     } catch (error) {
       if (!isUniqueViolation(error) || intento === MAX_INTENTOS) {
@@ -156,7 +161,7 @@ async function publicarEnTransaccion(
   input: PublishFormInput,
   actor: Actor,
 ): Promise<VersionCreada> {
-  const current = await lockForm(tx, formId);
+  const current = await lockForm(tx, formId, actor.workspaceId);
 
   const decision = decidirPublicacion(current.status);
   if (!decision.ok) throw transicionInvalida(decision.message);

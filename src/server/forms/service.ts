@@ -74,6 +74,7 @@ export interface DraftState {
 
 export interface FormSummary {
   readonly id: string;
+  readonly workspaceId: string;
   readonly slug: string;
   readonly title: string;
   readonly status: FormStatus;
@@ -141,6 +142,7 @@ function truncateTitle(value: string): string {
  */
 const summaryColumns = {
   id: forms.id,
+  workspaceId: forms.workspaceId,
   slug: forms.slug,
   title: forms.title,
   status: forms.status,
@@ -169,6 +171,7 @@ type SummaryRow = Awaited<ReturnType<typeof selectSummaries>>[number];
 function toSummary(row: SummaryRow, responses: ResponseCounts): FormSummary {
   return {
     id: row.id,
+    workspaceId: row.workspaceId,
     slug: row.slug,
     title: row.title,
     status: row.status,
@@ -252,8 +255,19 @@ async function uniqueSlug(
 }
 
 /** Lee el detalle completo dentro del manejador dado. Lanza 404 si no existe. */
-async function readDetail(handle: DbHandle, formId: string): Promise<FormDetail> {
-  const [row] = await selectSummaries(handle).where(eq(forms.id, formId)).limit(1);
+async function readDetail(
+  handle: DbHandle,
+  formId: string,
+  workspaceId?: string,
+): Promise<FormDetail> {
+  const conditions = [eq(forms.id, formId)];
+  if (workspaceId !== undefined) {
+    conditions.push(eq(forms.workspaceId, workspaceId));
+  }
+
+  const [row] = await selectSummaries(handle)
+    .where(and(...conditions))
+    .limit(1);
   if (!row) throw formularioNoEncontrado();
 
   const [draft] = await handle
@@ -279,17 +293,28 @@ async function readDetail(handle: DbHandle, formId: string): Promise<FormDetail>
  * resumen: PostgreSQL no admite el bloqueo sobre el lado nulable de un join
  * externo.
  */
-async function lockForm(handle: DbHandle, formId: string): Promise<{
+async function lockForm(
+  handle: DbHandle,
+  formId: string,
+  workspaceId?: string,
+): Promise<{
   readonly id: string;
+  readonly workspaceId: string;
   readonly title: string;
   readonly slug: string;
   readonly status: FormStatus;
   readonly closedAt: Date | null;
   readonly activeVersionId: string | null;
 }> {
+  const conditions = [eq(forms.id, formId)];
+  if (workspaceId !== undefined) {
+    conditions.push(eq(forms.workspaceId, workspaceId));
+  }
+
   const [row] = await handle
     .select({
       id: forms.id,
+      workspaceId: forms.workspaceId,
       title: forms.title,
       slug: forms.slug,
       status: forms.status,
@@ -297,7 +322,7 @@ async function lockForm(handle: DbHandle, formId: string): Promise<{
       activeVersionId: forms.activeVersionId,
     })
     .from(forms)
-    .where(eq(forms.id, formId))
+    .where(and(...conditions))
     .limit(1)
     .for('update');
 
@@ -327,7 +352,13 @@ export async function createForm(input: CreateFormInput, actor: Actor): Promise<
 
       const [created] = await tx
         .insert(forms)
-        .values({ slug, title, status: 'draft', createdBy: actor.id })
+        .values({
+          workspaceId: actor.workspaceId,
+          slug,
+          title,
+          status: 'draft',
+          createdBy: actor.id,
+        })
         .returning({ id: forms.id });
 
       if (!created) {
@@ -343,7 +374,7 @@ export async function createForm(input: CreateFormInput, actor: Actor): Promise<
 
       await reconcileDraftAssetRefs(tx, created.id, definition);
 
-      return readDetail(tx, created.id);
+      return readDetail(tx, created.id, actor.workspaceId);
     }),
   );
 }
@@ -378,8 +409,12 @@ async function withSlugRetry<T>(operation: () => Promise<T>): Promise<T> {
  * Listado del panel: búsqueda por título o slug, filtro por estado y contador de
  * respuestas. Los archivados quedan fuera salvo que se pidan.
  */
-export async function listForms(query: ListFormsQuery): Promise<FormListPage> {
+export async function listForms(query: ListFormsQuery, actor?: Actor): Promise<FormListPage> {
   const conditions: (SQL | undefined)[] = [];
+
+  if (actor?.workspaceId) {
+    conditions.push(eq(forms.workspaceId, actor.workspaceId));
+  }
 
   if (query.status !== undefined) {
     conditions.push(eq(forms.status, query.status));
@@ -425,8 +460,8 @@ export async function listForms(query: ListFormsQuery): Promise<FormListPage> {
 }
 
 /** Formulario con su borrador. Lanza `NO_ENCONTRADO` si no existe. */
-export async function getForm(formId: string): Promise<FormDetail> {
-  return readDetail(db, formId);
+export async function getForm(formId: string, actor?: Actor): Promise<FormDetail> {
+  return readDetail(db, formId, actor?.workspaceId);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -448,7 +483,7 @@ export async function updateFormMetadata(
 ): Promise<FormDetail> {
   return withSlugRetry(async () =>
     db.transaction(async (tx) => {
-      const current = await lockForm(tx, formId);
+      const current = await lockForm(tx, formId, actor.workspaceId);
 
       const patch: {
         title?: string;
@@ -485,9 +520,12 @@ export async function updateFormMetadata(
         await renameDraft(tx, formId, input.title, actor);
       }
 
-      await tx.update(forms).set(patch).where(eq(forms.id, formId));
+      await tx
+        .update(forms)
+        .set(patch)
+        .where(and(eq(forms.id, formId), eq(forms.workspaceId, actor.workspaceId)));
 
-      return readDetail(tx, formId);
+      return readDetail(tx, formId, actor.workspaceId);
     }),
   );
 }
@@ -539,7 +577,7 @@ export async function saveDraft(
   actor: Actor,
 ): Promise<DraftSaveResult> {
   return db.transaction(async (tx) => {
-    const current = await lockForm(tx, formId);
+    const current = await lockForm(tx, formId, actor.workspaceId);
 
     if (!canEditDraft(current.status)) {
       throw transicionInvalida(DRAFT_READ_ONLY_MESSAGE);
@@ -574,7 +612,10 @@ export async function saveDraft(
     }
 
     const title = truncateTitle(input.definition.meta.title);
-    await tx.update(forms).set({ title, updatedAt: now() }).where(eq(forms.id, formId));
+    await tx
+      .update(forms)
+      .set({ title, updatedAt: now() })
+      .where(and(eq(forms.id, formId), eq(forms.workspaceId, actor.workspaceId)));
 
     await reconcileDraftAssetRefs(tx, formId, input.definition);
 
@@ -602,7 +643,7 @@ export async function duplicateForm(
 ): Promise<FormDetail> {
   return withSlugRetry(async () =>
     db.transaction(async (tx) => {
-      const source = await readDetail(tx, formId);
+      const source = await readDetail(tx, formId, actor.workspaceId);
       const title = truncateTitle(input.title ?? `${source.title} (copia)`);
 
       const definition: FormDefinition = {
@@ -614,7 +655,13 @@ export async function duplicateForm(
 
       const [created] = await tx
         .insert(forms)
-        .values({ slug, title, status: 'draft', createdBy: actor.id })
+        .values({
+          workspaceId: actor.workspaceId,
+          slug,
+          title,
+          status: 'draft',
+          createdBy: actor.id,
+        })
         .returning({ id: forms.id });
 
       if (!created) {
@@ -630,7 +677,7 @@ export async function duplicateForm(
 
       await reconcileDraftAssetRefs(tx, created.id, definition);
 
-      return readDetail(tx, created.id);
+      return readDetail(tx, created.id, actor.workspaceId);
     }),
   );
 }
@@ -644,9 +691,9 @@ export async function duplicateForm(
  * Solo tiene sentido sobre un formulario publicado; es idempotente sobre uno ya
  * cerrado.
  */
-export async function closeForm(formId: string): Promise<FormDetail> {
+export async function closeForm(formId: string, actor?: Actor): Promise<FormDetail> {
   return db.transaction(async (tx) => {
-    const current = await lockForm(tx, formId);
+    const current = await lockForm(tx, formId, actor?.workspaceId);
 
     const transition = applyTransition(
       {
@@ -666,7 +713,7 @@ export async function closeForm(formId: string): Promise<FormDetail> {
         .where(eq(forms.id, formId));
     }
 
-    return readDetail(tx, formId);
+    return readDetail(tx, formId, actor?.workspaceId);
   });
 }
 
@@ -679,3 +726,4 @@ export async function archiveForm(formId: string, actor: Actor): Promise<FormDet
 export async function unarchiveForm(formId: string, actor: Actor): Promise<FormDetail> {
   return updateFormMetadata(formId, { archived: false }, actor);
 }
+

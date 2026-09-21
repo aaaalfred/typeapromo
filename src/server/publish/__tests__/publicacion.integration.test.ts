@@ -43,7 +43,13 @@ describeDb('publicación versionada · integración', () => {
   let formsLib: FormsLibModule;
 
   /** Actor sin fila en `users`: `published_by` es nulable. */
-  const actor: Actor = { id: null, email: 'fase7@typeapromo.local', name: 'Fase 7' };
+  const actor: Actor = {
+    id: null,
+    email: 'fase7@typeapromo.local',
+    name: 'Fase 7',
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    role: 'owner',
+  };
 
   const sufijo = `pub${Date.now().toString(36)}`;
   const creados: string[] = [];

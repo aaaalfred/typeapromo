@@ -28,7 +28,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   return route(async () => {
-    await requireActor();
+    const actor = await requireActor();
     const { id } = await context.params;
 
     const query = parseWith(
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const resultados = await obtenerResultados(
       parseWith(formIdSchema, id),
       filtrosDesdeQuery(query),
+      actor.workspaceId,
     );
 
     return jsonResponse(resultados);

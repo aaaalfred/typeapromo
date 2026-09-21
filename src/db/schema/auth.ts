@@ -37,6 +37,9 @@ export const users = pgTable(
      * otro workspace tampoco pase el guard (PLAN.md · fase 1). */
     slackTeamId: text("slack_team_id"),
 
+    /** Hash Argon2id de la contraseña (null en usuarios creados vía Slack o bypass). */
+    passwordHash: text("password_hash"),
+
     /** Estado de acceso: permite revocar sin borrar la identidad ni sus formularios. */
     isActive: boolean("is_active").notNull().default(true),
 
@@ -96,9 +99,46 @@ export const authSessions = pgTable(
   (table) => [index("auth_sessions_user_id_idx").on(table.userId)],
 );
 
+/**
+ * Tokens de verificación de correo. El token en claro viaja en el enlace;
+ * en la base de datos solo se guarda su hash SHA-256.
+ */
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Tokens de restablecimiento de contraseña. Caducidad: 1 hora.
+ */
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuthAccount = typeof authAccounts.$inferSelect;
 export type NewAuthAccount = typeof authAccounts.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
 export type NewAuthSession = typeof authSessions.$inferInsert;
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type NewEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;

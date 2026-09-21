@@ -96,8 +96,9 @@ function alcanceDeVersiones(
 export async function obtenerResultados(
   formId: string,
   filtros: FiltrosResultados,
+  workspaceId?: string,
 ): Promise<Resultados> {
-  const contexto = await cargarContexto(formId);
+  const contexto = await cargarContexto(formId, workspaceId);
   if (contexto === null) throw formularioNoEncontrado();
 
   const versiones = alcanceDeVersiones(contexto, filtros.versionId);
@@ -203,8 +204,9 @@ export interface ExportacionCsv {
 export async function prepararCsv(
   formId: string,
   filtros: FiltrosResultados,
+  workspaceId?: string,
 ): Promise<ExportacionCsv> {
-  const contexto = await cargarContexto(formId);
+  const contexto = await cargarContexto(formId, workspaceId);
   if (contexto === null) throw formularioNoEncontrado();
   if (contexto.metadatos.length === 0) throw sinVersiones();
 

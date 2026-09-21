@@ -14,7 +14,13 @@ import { notFound } from 'next/navigation';
 
 import { EditorConMedia } from '@/components/editor/media';
 import { requiereSesion } from '@/lib/auth/sesion';
-import { formIdSchema, getForm, isFormsError, type FormDetail } from '@/server/forms';
+import {
+  formIdSchema,
+  getForm,
+  isFormsError,
+  resolveActor,
+  type FormDetail,
+} from '@/server/forms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,9 +41,10 @@ export default async function PaginaEditor({ params }: PropsPagina) {
   const identificador = formIdSchema.safeParse(id);
   if (!identificador.success) notFound();
 
+  const actor = await resolveActor();
   let formulario: FormDetail;
   try {
-    formulario = await getForm(identificador.data);
+    formulario = await getForm(identificador.data, actor ?? undefined);
   } catch (error) {
     // Un identificador inexistente o mal formado es un 404, no un error del
     // servidor: la ruta la puede teclear cualquiera.

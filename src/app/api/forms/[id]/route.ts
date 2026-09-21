@@ -23,9 +23,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   return route(async () => {
-    await requireActor();
+    const actor = await requireActor();
     const { id } = await context.params;
-    const form = await getForm(parseWith(formIdSchema, id));
+    const form = await getForm(parseWith(formIdSchema, id), actor);
     return jsonResponse({ form });
   });
 }

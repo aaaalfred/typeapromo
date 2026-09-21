@@ -9,33 +9,49 @@
  * un cliente de API que recibe un 302 hacia el login en vez de un 401 no puede
  * distinguir «no autenticado» de «la respuesta es una página de HTML».
  *
- * La sesión se reevalúa contra el workspace autorizado en cada petición
- * (`evaluarSesion`), no solo al entrar: si `SLACK_TEAM_ID` cambia o alguien sale
- * del workspace, su sesión deja de valer sin esperar a que caduque.
+ * Cada actor pertenece a un `workspaceId` (aislamiento multi-inquilino) con un
+ * rol determinado (`owner` | `member`).
  */
 
+import type { WorkspaceRole } from '@/db/schema/workspaces';
 import { noAutenticado } from './errors';
 
 /**
- * Usuario que ejecuta la operación.
- *
- * `id` viene siempre relleno: la sesión de Auth.js lo garantiza. Se mantiene
- * nulable porque `forms.created_by` y `form_drafts.updated_by` lo son en el
- * esquema, y el servicio no debe asumir autoría para escribir.
+ * Usuario que ejecuta la operación, con su espacio de trabajo y rol.
  */
 export interface Actor {
   readonly id: string | null;
   readonly email: string | null;
   readonly name: string | null;
+  readonly workspaceId: string;
+  readonly role: WorkspaceRole;
 }
 
 /**
- * Resuelve el actor a partir de la sesión, o `null` si no hay identidad válida.
- *
- * La importación de `@/lib/auth/sesion` es dinámica y no de nivel de módulo:
- * arrastra Auth.js y con él `@/db`, cuyo pool de `pg` se crea al importar y
- * lanza sin `DATABASE_URL`. Con la importación diferida, los tests que solo
- * comprueban que se falla cerrado no necesitan base de datos.
+ * Resuelve la membresía de workspace para un usuario dado.
+ */
+export async function obtenerMembresiaActor(
+  userId: string,
+): Promise<{ workspaceId: string; role: WorkspaceRole } | null> {
+  const { db } = await import('@/db');
+  const { workspaceMembers } = await import('@/db/schema');
+  const { eq } = await import('drizzle-orm');
+
+  const [row] = await db
+    .select({
+      workspaceId: workspaceMembers.workspaceId,
+      role: workspaceMembers.role,
+    })
+    .from(workspaceMembers)
+    .where(eq(workspaceMembers.userId, userId))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * Resuelve el actor a partir de la sesión, o `null` si no hay identidad válida
+ * o no tiene ningún workspace asignado.
  */
 export async function resolveActor(): Promise<Actor | null> {
   const { evaluarSesion, sesionActual } = await import('@/lib/auth/sesion');
@@ -43,13 +59,18 @@ export async function resolveActor(): Promise<Actor | null> {
   const sesion = await sesionActual();
   if (!sesion?.user?.id) return null;
 
-  // El workspace se reevalúa en cada petición, no solo al iniciar sesión.
+  // El workspace/guard se reevalúa en cada petición, no solo al iniciar sesión.
   if (!evaluarSesion(sesion).permitido) return null;
+
+  const membresia = await obtenerMembresiaActor(sesion.user.id);
+  if (!membresia) return null;
 
   return {
     id: sesion.user.id,
     email: sesion.user.email ?? null,
     name: sesion.user.name ?? null,
+    workspaceId: membresia.workspaceId,
+    role: membresia.role,
   };
 }
 

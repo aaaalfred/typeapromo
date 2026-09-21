@@ -9,13 +9,29 @@ import { isFormsError } from '../errors';
  * las rutas responden 401, nunca una redirección al login (un cliente de API no
  * sabría distinguirla de una respuesta legítima).
  *
- * Se sustituye el módulo de sesión porque el real arrastra Auth.js y con él el
- * pool de `pg`, que exige `DATABASE_URL`. Lo que se prueba aquí es la decisión,
- * no la lectura de la cookie.
+ * Se sustituye el módulo de sesión y la base de datos para que los tests
+ * unitarios no requieran PostgreSQL ni variables de entorno.
  */
 vi.mock('@/lib/auth/sesion', () => ({
   sesionActual: vi.fn(),
   evaluarSesion: vi.fn(),
+}));
+
+let membresiaMock: { workspaceId: string; role: 'owner' | 'member' } | null = {
+  workspaceId: '00000000-0000-0000-0000-000000000001',
+  role: 'owner',
+};
+
+vi.mock('@/db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn().mockImplementation(() => Promise.resolve(membresiaMock ? [membresiaMock] : [])),
+        })),
+      })),
+    })),
+  },
 }));
 
 const { evaluarSesion, sesionActual } = await import('@/lib/auth/sesion');
@@ -36,6 +52,10 @@ beforeEach(() => {
   vi.mocked(sesionActual).mockReset();
   vi.mocked(evaluarSesion).mockReset();
   vi.mocked(evaluarSesion).mockReturnValue({ permitido: true, teamId: 'T123' });
+  membresiaMock = {
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    role: 'owner',
+  };
 });
 
 describe('resolveActor', () => {
@@ -56,6 +76,13 @@ describe('resolveActor', () => {
     await expect(resolveActor()).resolves.toBeNull();
   });
 
+  it('no devuelve actor si el usuario no tiene membresía en ningún workspace', async () => {
+    vi.mocked(sesionActual).mockResolvedValue(sesionValida);
+    membresiaMock = null;
+
+    await expect(resolveActor()).resolves.toBeNull();
+  });
+
   it('reevalúa el workspace en cada petición, no solo al iniciar sesión', async () => {
     vi.mocked(sesionActual).mockResolvedValue(sesionValida);
 
@@ -64,17 +91,19 @@ describe('resolveActor', () => {
     expect(vi.mocked(evaluarSesion)).toHaveBeenCalledWith(sesionValida);
   });
 
-  it('devuelve el actor de una sesión válida', async () => {
+  it('devuelve el actor de una sesión válida con workspace y rol', async () => {
     vi.mocked(sesionActual).mockResolvedValue(sesionValida);
 
     await expect(resolveActor()).resolves.toEqual({
       id: '11111111-1111-1111-1111-111111111111',
       email: 'ana@equipo.test',
       name: 'Ana',
+      workspaceId: '00000000-0000-0000-0000-000000000001',
+      role: 'owner',
     });
   });
 
-  it('normaliza a null los campos opcionales ausentes', async () => {
+  it('normaliza a null los campos opcionales ausentes conservando workspaceId', async () => {
     vi.mocked(sesionActual).mockResolvedValue({
       user: { id: '22222222-2222-2222-2222-222222222222' },
     } as unknown as Session);
@@ -83,6 +112,8 @@ describe('resolveActor', () => {
       id: '22222222-2222-2222-2222-222222222222',
       email: null,
       name: null,
+      workspaceId: '00000000-0000-0000-0000-000000000001',
+      role: 'owner',
     });
   });
 });
@@ -106,6 +137,8 @@ describe('requireActor', () => {
 
     await expect(requireActor()).resolves.toMatchObject({
       id: '11111111-1111-1111-1111-111111111111',
+      workspaceId: '00000000-0000-0000-0000-000000000001',
+      role: 'owner',
     });
   });
 });

@@ -18,7 +18,13 @@ import { notFound } from 'next/navigation';
 
 import { PanelResultados, rutaResultados } from '@/components/resultados';
 import { requiereSesion } from '@/lib/auth/sesion';
-import { formIdSchema, getForm, isFormsError, type FormDetail } from '@/server/forms';
+import {
+  formIdSchema,
+  getForm,
+  isFormsError,
+  resolveActor,
+  type FormDetail,
+} from '@/server/forms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,9 +46,10 @@ export default async function PaginaResultados({ params }: PropsPagina) {
   const identificador = formIdSchema.safeParse(id);
   if (!identificador.success) notFound();
 
+  const actor = await resolveActor();
   let formulario: FormDetail;
   try {
-    formulario = await getForm(identificador.data);
+    formulario = await getForm(identificador.data, actor ?? undefined);
   } catch (error) {
     if (isFormsError(error) && error.code === 'NO_ENCONTRADO') notFound();
     throw error;

@@ -1,9 +1,16 @@
 import { relations } from "drizzle-orm";
 
-import { authAccounts, authSessions, users } from "./auth";
+import {
+  authAccounts,
+  authSessions,
+  emailVerificationTokens,
+  passwordResetTokens,
+  users,
+} from "./auth";
 import { formDrafts, formVersions, forms } from "./forms";
 import { mediaAssetRefs, mediaAssets } from "./media";
 import { answers, formEvents, responseSessions } from "./responses";
+import { workspaceMembers, workspaces } from "./workspaces";
 
 /**
  * Relaciones para la API de consultas de Drizzle (`db.query.*`).
@@ -15,10 +22,43 @@ import { answers, formEvents, responseSessions } from "./responses";
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(authAccounts),
   sessions: many(authSessions),
+  workspaceMemberships: many(workspaceMembers),
   createdForms: many(forms),
   editedDrafts: many(formDrafts),
   publishedVersions: many(formVersions),
   uploadedAssets: many(mediaAssets),
+  emailVerificationTokens: many(emailVerificationTokens),
+  passwordResetTokens: many(passwordResetTokens),
+}));
+
+export const workspacesRelations = relations(workspaces, ({ many }) => ({
+  members: many(workspaceMembers),
+  forms: many(forms),
+}));
+
+export const workspaceMembersRelations = relations(workspaceMembers, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [workspaceMembers.workspaceId],
+    references: [workspaces.id],
+  }),
+  user: one(users, {
+    fields: [workspaceMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const emailVerificationTokensRelations = relations(emailVerificationTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [emailVerificationTokens.userId],
+    references: [users.id],
+  }),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const authAccountsRelations = relations(authAccounts, ({ one }) => ({
@@ -30,6 +70,10 @@ export const authSessionsRelations = relations(authSessions, ({ one }) => ({
 }));
 
 export const formsRelations = relations(forms, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [forms.workspaceId],
+    references: [workspaces.id],
+  }),
   creator: one(users, { fields: [forms.createdBy], references: [users.id] }),
   draft: one(formDrafts),
   versions: many(formVersions, { relationName: "form_versions" }),

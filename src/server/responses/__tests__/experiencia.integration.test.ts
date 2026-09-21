@@ -50,7 +50,13 @@ describeDb('experiencia de respuesta · integración', () => {
   let drizzle: DrizzleModule;
   let fixtures: FixturesModule;
 
-  const actor: Actor = { id: null, email: 'fase7@typeapromo.local', name: 'Fase 7' };
+  const actor: Actor = {
+    id: null,
+    email: 'fase7@typeapromo.local',
+    name: 'Fase 7',
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    role: 'owner',
+  };
   const sufijo = `resp${Date.now().toString(36)}`;
   const creados: string[] = [];
 

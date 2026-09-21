@@ -253,7 +253,11 @@ describePipeline('pipeline de media · integración', () => {
     // Formulario y snapshot mínimos para poder anclar la referencia.
     const [formulario] = await dbModule.db
       .insert(schema.forms)
-      .values({ slug: `prueba-media-${sufijo}`, title: 'Prueba de media' })
+      .values({
+        slug: `prueba-media-${sufijo}`,
+        title: 'Prueba de media',
+        workspaceId: '00000000-0000-0000-0000-000000000001',
+      })
       .returning();
     expect(formulario).toBeDefined();
     if (formulario === undefined) return;

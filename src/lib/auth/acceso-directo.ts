@@ -22,7 +22,14 @@
 import { randomUUID } from 'node:crypto';
 
 import { db } from '@/db';
-import { authSessions, users, type User } from '@/db/schema';
+import {
+  authSessions,
+  users,
+  workspaceMembers,
+  workspaces,
+  type User,
+  type Workspace,
+} from '@/db/schema';
 
 import { DURACION_SESION_SEGUNDOS } from './constantes';
 import { esBypassActivo } from './entorno';
@@ -30,19 +37,22 @@ import { esBypassActivo } from './entorno';
 /** Identidad fija del usuario de desarrollo. */
 export const EMAIL_USUARIO_DESARROLLO = 'desarrollo@typeapromo.local';
 export const NOMBRE_USUARIO_DESARROLLO = 'Usuario de desarrollo';
+export const SLUG_WORKSPACE_DESARROLLO = 'espacio-desarrollo';
+export const NOMBRE_WORKSPACE_DESARROLLO = 'Espacio de desarrollo';
 
 export interface SesionDeAccesoDirecto {
   /** Valor que va en la cookie `authjs.session-token`. */
   token: string;
   expira: Date;
   usuario: User;
+  workspace: Workspace;
 }
 
 /**
- * Devuelve el usuario de desarrollo, creándolo si hace falta. El `upsert` sobre
- * `email` evita la carrera de dos pestañas entrando a la vez.
+ * Devuelve el usuario de desarrollo, creándolo si hace falta junto a su
+ * workspace y membresía `owner` (exigido para que `requireActor` no falle).
  */
-export async function obtenerUsuarioDeDesarrollo(): Promise<User> {
+export async function obtenerUsuarioDeDesarrollo(): Promise<{ usuario: User; workspace: Workspace }> {
   const ahora = new Date();
   const [usuario] = await db
     .insert(users)
@@ -60,7 +70,35 @@ export async function obtenerUsuarioDeDesarrollo(): Promise<User> {
   if (usuario === undefined) {
     throw new Error('No se ha podido preparar el usuario de acceso directo');
   }
-  return usuario;
+
+  const [workspace] = await db
+    .insert(workspaces)
+    .values({
+      name: NOMBRE_WORKSPACE_DESARROLLO,
+      slug: SLUG_WORKSPACE_DESARROLLO,
+      plan: 'pro',
+      planStatus: 'active',
+    })
+    .onConflictDoUpdate({
+      target: workspaces.slug,
+      set: { name: NOMBRE_WORKSPACE_DESARROLLO, updatedAt: ahora },
+    })
+    .returning();
+
+  if (workspace === undefined) {
+    throw new Error('No se ha podido preparar el workspace de acceso directo');
+  }
+
+  await db
+    .insert(workspaceMembers)
+    .values({
+      workspaceId: workspace.id,
+      userId: usuario.id,
+      role: 'owner',
+    })
+    .onConflictDoNothing();
+
+  return { usuario, workspace };
 }
 
 /**
@@ -73,7 +111,7 @@ export async function crearSesionDeAccesoDirecto(): Promise<SesionDeAccesoDirect
     throw new Error('El acceso directo está desactivado: AUTH_DEV_BYPASS no vale 1');
   }
 
-  const usuario = await obtenerUsuarioDeDesarrollo();
+  const { usuario, workspace } = await obtenerUsuarioDeDesarrollo();
   const token = randomUUID();
   const expira = new Date(Date.now() + DURACION_SESION_SEGUNDOS * 1000);
 
@@ -83,5 +121,6 @@ export async function crearSesionDeAccesoDirecto(): Promise<SesionDeAccesoDirect
     expires: expira,
   });
 
-  return { token, expira, usuario };
+  return { token, expira, usuario, workspace };
 }
+

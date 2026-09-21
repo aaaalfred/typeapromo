@@ -37,8 +37,13 @@ describeDb('servicio de formularios · integración', () => {
   let drizzle: DrizzleModule;
   let formsLib: FormsLibModule;
 
-  /** Actor sin fila en `users`: `created_by` y `updated_by` son nulables. */
-  const actor: Actor = { id: null, email: 'integracion@typeapromo.local', name: 'Integración' };
+  const actor: Actor = {
+    id: null,
+    email: 'integracion@typeapromo.local',
+    name: 'Integración',
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    role: 'owner',
+  };
 
   /** Sufijo único para que los slugs no choquen con datos preexistentes. */
   const sufijo = Date.now().toString(36);

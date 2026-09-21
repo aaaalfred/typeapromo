@@ -74,6 +74,14 @@ const USUARIO = {
   nombre: 'Equipo de demostración',
 }
 
+const WORKSPACE_DEMO = {
+  id: uuidDe('workspace'),
+  name: 'Espacio de demostración',
+  slug: 'demo-workspace',
+  plan: 'pro',
+  planStatus: 'active',
+}
+
 /* -------------------------------------------------------------------------- */
 /* Temas                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -748,11 +756,39 @@ function idRespuesta(claveSesion, questionId) {
 
 async function sembrarUsuario(cliente) {
   await cliente.query(
+    `insert into workspaces (id, name, slug, plan, plan_status, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, now(), now())
+     on conflict (slug) do update
+       set name = excluded.name, updated_at = now()`,
+    [
+      WORKSPACE_DEMO.id,
+      WORKSPACE_DEMO.name,
+      WORKSPACE_DEMO.slug,
+      WORKSPACE_DEMO.plan,
+      WORKSPACE_DEMO.planStatus,
+    ],
+  )
+
+  await cliente.query(
     `insert into users (id, email, name, email_verified, is_active, created_at, updated_at)
      values ($1, $2, $3, now(), true, now(), now())
      on conflict (email) do update
        set id = excluded.id, name = excluded.name, updated_at = now()`,
     [USUARIO.id, USUARIO.email, USUARIO.nombre],
+  )
+
+  await cliente.query(
+    `insert into workspace_members (workspace_id, user_id, role, created_at)
+     values ($1, $2, 'owner', now())
+     on conflict (workspace_id, user_id) do nothing`,
+    [WORKSPACE_DEMO.id, USUARIO.id],
+  )
+
+  await cliente.query(
+    `insert into workspace_members (workspace_id, user_id, role, created_at)
+     select $1, id, 'owner', now() from users where email = 'desarrollo@typeapromo.local'
+     on conflict (workspace_id, user_id) do nothing`,
+    [WORKSPACE_DEMO.id],
   )
 }
 
@@ -763,10 +799,11 @@ async function sembrarFormulario(cliente, formulario) {
   // `active_version_id` se deja a null en este paso: las versiones todavía no
   // existen y la clave foránea es real.
   await cliente.query(
-    `insert into forms (id, slug, title, status, created_by, active_version_id, created_at, updated_at)
-     values ($1, $2, $3, $4::form_status, $5, null, $6, $7)
+    `insert into forms (id, workspace_id, slug, title, status, created_by, active_version_id, created_at, updated_at)
+     values ($1, $2, $3, $4, $5::form_status, $6, null, $7, $8)
      on conflict (id) do update
-       set slug = excluded.slug,
+       set workspace_id = excluded.workspace_id,
+           slug = excluded.slug,
            title = excluded.title,
            status = excluded.status,
            created_by = excluded.created_by,
@@ -774,6 +811,7 @@ async function sembrarFormulario(cliente, formulario) {
            updated_at = excluded.updated_at`,
     [
       formId,
+      WORKSPACE_DEMO.id,
       formulario.slug,
       formulario.titulo,
       formulario.estado,
@@ -948,6 +986,7 @@ async function limpiar(cliente) {
     'delete from forms where id = any($1::uuid[])',
     [ids],
   )
+  await cliente.query('delete from workspaces where id = $1', [WORKSPACE_DEMO.id])
   const { rowCount: usuariosBorrados } = await cliente.query(
     'delete from users where email = $1',
     [USUARIO.email],

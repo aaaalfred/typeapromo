@@ -12,6 +12,7 @@ import {
 
 import { formStatusEnum } from "./enums";
 import { users } from "./auth";
+import { workspaces } from "./workspaces";
 
 /**
  * Identidad estable de un formulario. El contenido vive en `form_drafts`
@@ -26,6 +27,10 @@ export const forms = pgTable(
   "forms",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Espacio de trabajo al que pertenece el formulario. */
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
     /** Slug público servido en `/f/:slug`. */
     slug: text("slug").notNull().unique(),
     title: text("title").notNull(),
@@ -56,6 +61,7 @@ export const forms = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
   },
   (table) => [
+    index("forms_workspace_id_idx").on(table.workspaceId),
     index("forms_status_idx").on(table.status),
     index("forms_created_by_idx").on(table.createdBy),
     index("forms_updated_at_idx").on(table.updatedAt),

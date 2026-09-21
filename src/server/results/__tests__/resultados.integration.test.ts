@@ -61,7 +61,13 @@ describeDb('resultados · integración', () => {
   let drizzle: DrizzleModule;
   let fixtures: FixturesModule;
 
-  const actor: Actor = { id: null, email: 'fase8@typeapromo.local', name: 'Fase 8' };
+  const actor: Actor = {
+    id: null,
+    email: 'fase8@typeapromo.local',
+    name: 'Fase 8',
+    workspaceId: '00000000-0000-0000-0000-000000000001',
+    role: 'owner',
+  };
   const sufijo = `res${Date.now().toString(36)}`;
   const creados: string[] = [];
 

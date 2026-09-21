@@ -43,7 +43,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   return route(async () => {
-    await requireActor();
+    const actor = await requireActor();
     const { id } = await context.params;
 
     const query = parseWith(
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const exportacion = await prepararCsv(
       parseWith(formIdSchema, id),
       filtrosDesdeQuery(query),
+      actor.workspaceId,
     );
 
     return new NextResponse(flujoCsv(exportacion.trozos), {
