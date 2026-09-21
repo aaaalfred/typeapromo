@@ -26,6 +26,10 @@ El alcance funcional está en [`PR.md`](./PR.md) y el plan de ejecución por fas
   suyo, así que una versión nueva no altera ni un recorrido ni una etiqueta del histórico.
 - **Resultados** con sesiones iniciadas, completadas y abandonadas, abandono por pregunta,
   distribuciones, promedios y una exportación CSV en streaming, una versión por fichero.
+- **Notificaciones por correo**: aviso automático al propietario del workspace vía Resend cuando
+  alguien completa un formulario (configurable desde el panel de ajustes).
+- **Redirección y enlaces limpios**: slug personalizable para cada formulario (`/f/:slug`) y
+  redirección opcional a una URL externa tras completar la respuesta.
 
 ## Stack
 
@@ -37,7 +41,7 @@ El alcance funcional está en [`PR.md`](./PR.md) y el plan de ejecución por fas
 | Base de datos | PostgreSQL 17 + Drizzle ORM, migraciones versionadas |
 | Contratos | Zod, compartido entre editor, API y experiencia pública |
 | Autenticación | Email + contraseña (Argon2id), verificación con Resend · Slack OIDC opcional |
-| Facturación | Stripe (Checkout, Customer Portal, webhooks idempotentes, planes Free y Pro) |
+| Facturación | Stripe (Checkout, Customer Portal, webhooks idempotentes, suscripción única Plan Business) |
 | Almacenamiento | Cloudflare R2 en producción; MinIO en local |
 | Tests | Vitest (unitarias e integración) · Playwright (end-to-end) · axe-core |
 
