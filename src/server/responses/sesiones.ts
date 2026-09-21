@@ -26,7 +26,8 @@
 import { and, count, eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { answers, formVersions, responseSessions } from '@/db/schema';
+import { answers, formVersions, forms, responseSessions, users, workspaceMembers } from '@/db/schema';
+import { enviarNotificacionNuevaRespuesta } from '@/server/email';
 import {
   firstScreen,
   formDefinitionSchema,
@@ -459,6 +460,59 @@ export async function completarSesion(
     type: 'completed',
     metadata: { respondidas: Object.keys(sesion.respuestas).length },
   });
+
+  // Avisar al owner del workspace si las notificaciones están activadas
+  const notificar = sesion.definicion.settings?.notifyOnCompletion ?? true;
+  if (notificar) {
+    try {
+      const [formulario] = await db
+        .select({ workspaceId: forms.workspaceId, title: forms.title })
+        .from(forms)
+        .where(eq(forms.id, sesion.formId));
+
+      if (formulario) {
+        let miembros = await db
+          .select({ email: users.email, name: users.name })
+          .from(workspaceMembers)
+          .innerJoin(users, eq(users.id, workspaceMembers.userId))
+          .where(
+            and(
+              eq(workspaceMembers.workspaceId, formulario.workspaceId),
+              eq(workspaceMembers.role, 'owner'),
+            ),
+          );
+
+        if (miembros.length === 0) {
+          miembros = await db
+            .select({ email: users.email, name: users.name })
+            .from(workspaceMembers)
+            .innerJoin(users, eq(users.id, workspaceMembers.userId))
+            .where(eq(workspaceMembers.workspaceId, formulario.workspaceId));
+        }
+
+        const baseUrl =
+          process.env.APP_URL?.trim() ||
+          process.env.NEXTAUTH_URL?.trim() ||
+          'http://localhost:3000';
+        const enlaceResultados = `${baseUrl}/app/formularios/${sesion.formId}/resultados`;
+        const totalRespondidas = Object.keys(sesion.respuestas).length;
+
+        for (const miembro of miembros) {
+          if (miembro.email) {
+            await enviarNotificacionNuevaRespuesta({
+              para: miembro.email,
+              nombreDestinatario: miembro.name,
+              tituloFormulario: formulario.title,
+              enlaceResultados,
+              totalRespondidas,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[EMAIL NOTIFICACION ERROR]', error);
+    }
+  }
 
   return { vista: aVistaSesion({ ...sesion, completada: true }) };
 }

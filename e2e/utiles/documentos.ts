@@ -46,7 +46,12 @@ export const TEMA_ALTERNATIVO: ThemeDefinition = {
   backgroundOverlayOpacity: 0,
 }
 
-const AJUSTES = { showProgressBar: true, allowResume: true, showQuestionNumbers: false } as const
+const AJUSTES = {
+  showProgressBar: true,
+  allowResume: true,
+  showQuestionNumbers: false,
+  notifyOnCompletion: true,
+} as const;
 
 /* -------------------------------------------------------------------------- */
 /* Documento con bifurcación                                                   */

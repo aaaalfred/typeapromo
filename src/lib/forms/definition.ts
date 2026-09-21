@@ -625,6 +625,7 @@ export const formSettingsSchema = z
     showProgressBar: z.boolean().default(true),
     allowResume: z.boolean().default(true),
     showQuestionNumbers: z.boolean().default(false),
+    notifyOnCompletion: z.boolean().default(true),
   })
   .strict();
 
@@ -650,6 +651,7 @@ export const formDefinitionSchema = z
       showProgressBar: true,
       allowResume: true,
       showQuestionNumbers: false,
+      notifyOnCompletion: true,
     }),
   })
   .strict();
@@ -859,6 +861,7 @@ export function createDefaultFormDefinition(title: string): FormDefinition {
       showProgressBar: true,
       allowResume: true,
       showQuestionNumbers: false,
+      notifyOnCompletion: true,
     },
   };
 }

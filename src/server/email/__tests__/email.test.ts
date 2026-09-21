@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   enviarCorreo,
+  enviarNotificacionNuevaRespuesta,
+  plantillaNuevaRespuesta,
   plantillaRestablecimiento,
   plantillaVerificacion,
   remitenteConfigurado,
@@ -42,6 +44,23 @@ describe('email templates y servicio', () => {
     expect(plantilla.texto).toContain('1 hora');
   });
 
+  it('plantillaNuevaRespuesta genera correo informativo con enlace a resultados', () => {
+    const plantilla = plantillaNuevaRespuesta({
+      nombreDestinatario: 'Carlos',
+      tituloFormulario: 'Encuesta de Satisfacción',
+      enlaceResultados: 'https://app.typeapromo.com/app/formularios/123/resultados',
+      totalRespondidas: 5,
+    });
+
+    expect(plantilla.asunto).toBe('Nueva respuesta en «Encuesta de Satisfacción»');
+    expect(plantilla.texto).toContain('Hola, Carlos:');
+    expect(plantilla.texto).toContain('Encuesta de Satisfacción');
+    expect(plantilla.texto).toContain('Preguntas respondidas: 5.');
+    expect(plantilla.texto).toContain('https://app.typeapromo.com/app/formularios/123/resultados');
+    expect(plantilla.html).toContain('Encuesta de Satisfacción');
+    expect(plantilla.html).toContain('Ver respuestas en el panel');
+  });
+
   it('enviarCorreo en modo desarrollo no falla y escribe en console.info', async () => {
     const originalApiKey = process.env.RESEND_API_KEY;
     delete process.env.RESEND_API_KEY;
@@ -62,5 +81,20 @@ describe('email templates y servicio', () => {
     if (originalApiKey !== undefined) {
       process.env.RESEND_API_KEY = originalApiKey;
     }
+  });
+
+  it('enviarNotificacionNuevaRespuesta llama a enviarCorreo correctamente', async () => {
+    const spyInfo = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    const res = await enviarNotificacionNuevaRespuesta({
+      para: 'owner@ejemplo.com',
+      nombreDestinatario: 'Owner',
+      tituloFormulario: 'Formulario Demo',
+      enlaceResultados: 'http://localhost:3000/app/formularios/abc/resultados',
+      totalRespondidas: 3,
+    });
+
+    expect(res.exito).toBe(true);
+    spyInfo.mockRestore();
   });
 });

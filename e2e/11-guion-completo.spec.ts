@@ -132,7 +132,12 @@ function documentoDelGuion(titulo: string, assetId: string): FormDefinition {
       },
     ],
     defaultEndScreenId: 'fin-gracias',
-    settings: { showProgressBar: true, allowResume: true, showQuestionNumbers: true },
+    settings: {
+      showProgressBar: true,
+      allowResume: true,
+      showQuestionNumbers: true,
+      notifyOnCompletion: true,
+    },
   }
 }
 

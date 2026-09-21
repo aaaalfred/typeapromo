@@ -166,6 +166,14 @@ export function PanelAjustes({
             acciones.actualizarAjustes({ showQuestionNumbers });
           }}
         />
+        <Interruptor
+          etiqueta="Avisar por correo al completar"
+          activo={settings.notifyOnCompletion}
+          ayuda="Envía un correo al propietario del espacio de trabajo cada vez que alguien envía una respuesta."
+          alCambiar={(notifyOnCompletion) => {
+            acciones.actualizarAjustes({ notifyOnCompletion });
+          }}
+        />
       </Seccion>
     </>
   );
