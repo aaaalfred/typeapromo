@@ -26,6 +26,7 @@ describe('esRutaPublica', () => {
     '/verificar-correo',
     '/restablecer-contrasena',
     '/reenviar-verificacion',
+    '/proximamente',
   ])('deja pública %s', (ruta) => {
     expect(esRutaPublica(ruta)).toBe(true);
   });

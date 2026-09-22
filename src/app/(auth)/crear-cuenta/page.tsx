@@ -7,14 +7,20 @@
  * de longitud mínima (10 caracteres).
  */
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-import { RUTA_LOGIN, RUTA_VERIFICAR_CORREO } from '@/lib/auth/rutas';
+import { normalizarDestino, RUTA_LOGIN, RUTA_VERIFICAR_CORREO } from '@/lib/auth/rutas';
 
-export default function PaginaCrearCuenta() {
+function FormularioCrearCuenta() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan');
+  const destinoParam = searchParams.get('destino');
+
+  const destino = plan === 'business' ? '/app/plan' : (destinoParam ? normalizarDestino(destinoParam) : '');
+
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,6 +47,7 @@ export default function PaginaCrearCuenta() {
           name: nombre.trim() || undefined,
           email: email.trim(),
           password,
+          destino: destino || undefined,
         }),
       });
 
@@ -51,8 +58,9 @@ export default function PaginaCrearCuenta() {
         return;
       }
 
+      const queryDestino = destino ? `&destino=${encodeURIComponent(destino)}` : '';
       router.push(
-        `${RUTA_VERIFICAR_CORREO}?email=${encodeURIComponent(email)}&registrado=1`,
+        `${RUTA_VERIFICAR_CORREO}?email=${encodeURIComponent(email)}&registrado=1${queryDestino}`,
       );
     } catch {
       setError('Error de conexión con el servidor. Inténtalo de nuevo.');
@@ -67,6 +75,12 @@ export default function PaginaCrearCuenta() {
         <p className="mt-1 text-sm text-black/70 dark:text-white/70">
           Comienza a diseñar formularios interactivos con Typeapromo.
         </p>
+        {plan === 'business' ? (
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-black/15 bg-black/5 px-3 py-1 text-xs font-medium text-black dark:border-white/20 dark:bg-white/10 dark:text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Plan seleccionado: Business
+          </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -168,12 +182,20 @@ export default function PaginaCrearCuenta() {
       <div className="mt-6 text-center text-xs text-black/70 dark:text-white/70">
         ¿Ya tienes cuenta?{' '}
         <Link
-          href={RUTA_LOGIN}
+          href={`${RUTA_LOGIN}${destino ? `?destino=${encodeURIComponent(destino)}` : ''}`}
           className="font-medium text-black underline underline-offset-2 hover:text-black/80 dark:text-white dark:hover:text-white/80"
         >
           Iniciar sesión
         </Link>
       </div>
     </section>
+  );
+}
+
+export default function PaginaCrearCuenta() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-black/50">Cargando...</div>}>
+      <FormularioCrearCuenta />
+    </Suspense>
   );
 }

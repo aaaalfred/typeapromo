@@ -18,6 +18,8 @@ export const RUTA_VERIFICAR_CORREO = '/verificar-correo';
 export const RUTA_RESTABLECER_CONTRASENA = '/restablecer-contrasena';
 /** Página para solicitar reenvío de correo de verificación. */
 export const RUTA_REENVIAR_VERIFICACION = '/reenviar-verificacion';
+/** Página de información sobre planes o características en construcción. */
+export const RUTA_PROXIMAMENTE = '/proximamente';
 /** Raíz del panel autenticado. Todo lo que cuelga de aquí está protegido. */
 export const RUTA_PANEL = '/app';
 
@@ -46,6 +48,7 @@ const PREFIJOS_PUBLICOS: readonly string[] = [
   RUTA_VERIFICAR_CORREO,
   RUTA_RESTABLECER_CONTRASENA,
   RUTA_REENVIAR_VERIFICACION,
+  RUTA_PROXIMAMENTE,
 ];
 
 /** Normaliza quitando la barra final, salvo en la raíz. */

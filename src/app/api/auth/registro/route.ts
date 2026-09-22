@@ -36,6 +36,7 @@ const esquemaRegistro = z.object({
       `La contraseña debe tener al menos ${LONGITUD_MINIMA_PASSWORD} caracteres`,
     )
     .max(128, 'La contraseña no puede superar 128 caracteres'),
+  destino: z.string().max(200).optional(),
 });
 
 const MENSAJE_RESPUESTA_GENERICA =
@@ -74,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: primerError }, { status: 400 });
   }
 
-  const { name, email, password } = validacion.data;
+  const { name, email, password, destino } = validacion.data;
 
   // 3. Comprobación opaca de existencia para evitar enumeración de cuentas
   const [usuarioExistente] = await db
@@ -147,7 +148,10 @@ export async function POST(request: Request): Promise<Response> {
   // 5. Creación del token de verificación y envío del correo
   const tokenPlano = await crearTokenVerificacion(nuevoUsuarioId);
   const baseOrigen = urlBaseDePeticion(request);
-  const enlaceVerificacion = `${baseOrigen}/verificar-correo?token=${encodeURIComponent(tokenPlano)}`;
+  const destinoParam = destino
+    ? `&destino=${encodeURIComponent(destino)}`
+    : '';
+  const enlaceVerificacion = `${baseOrigen}/verificar-correo?token=${encodeURIComponent(tokenPlano)}${destinoParam}`;
   const plantilla = plantillaVerificacion(enlaceVerificacion);
 
   await enviarCorreo({

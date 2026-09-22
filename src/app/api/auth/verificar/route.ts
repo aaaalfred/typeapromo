@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { users } from '@/db/schema';
+import { normalizarDestino } from '@/lib/auth/rutas';
 import { consumirTokenVerificacion } from '@/server/auth/tokens';
 import {
   crearSesionUsuario,
@@ -24,6 +25,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
+  const destinoParam = url.searchParams.get('destino');
   const baseOrigen = urlBaseDePeticion(request);
 
   if (!token || token.trim() === '') {
@@ -50,8 +52,10 @@ export async function GET(request: Request): Promise<Response> {
   const { token: sessionToken, expira } = await crearSesionUsuario(userId);
   const esSeguro = esPeticionSegura(request);
 
-  const respuesta = NextResponse.redirect(`${baseOrigen}/app`, { status: 303 });
+  const destinoFinal = normalizarDestino(destinoParam);
+  const respuesta = NextResponse.redirect(`${baseOrigen}${destinoFinal}`, { status: 303 });
   fijarCookieSesion(respuesta, sessionToken, expira, esSeguro);
 
   return respuesta;
 }
+

@@ -24,10 +24,12 @@ export default async function PaginaVerificarCorreo({ searchParams }: Propiedade
   const token = primerValor(params['token']);
   const error = primerValor(params['error']);
   const email = primerValor(params['email']);
+  const destino = primerValor(params['destino']);
 
   // Si viene con token, redirigir al handler de verificación que procesa y establece la cookie de sesión
   if (token && token.trim() !== '') {
-    redirect(`/api/auth/verificar?token=${encodeURIComponent(token.trim())}`);
+    const destinoParam = destino ? `&destino=${encodeURIComponent(destino)}` : '';
+    redirect(`/api/auth/verificar?token=${encodeURIComponent(token.trim())}${destinoParam}`);
   }
 
   const tokenInvalido = error === 'token-invalido';
